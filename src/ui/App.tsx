@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { createDocument, currentText, readTextFile, revise, undo, validateText, type TextDocument } from '../application/document'
+import { createDocument, createPdfDocument, currentText, readTextFile, revise, undo, validateText, type TextDocument } from '../application/document'
 import { defaultSettings, ReaderEngine, type ReaderSettings } from '../domain/reader'
 import { emptyLibrary, Persistence, resumePosition, type LibraryData } from '../application/library'
 import { exportBackup, MAX_BACKUP_BYTES, mergeBackup, parseBackup, type BackupEnvelope } from '../application/backup'
 import { IndexedDbStorage } from '../storage/indexed-db'
+import { PdfImport } from './PdfImport'
+import { warningLabels } from '../application/pdf-text'
 
 const sample = 'Đọc chậm lại một chút.\n\nĐôi khi, điều ta cần không phải là thêm thông tin, mà là một khoảng lặng để chú ý. Hãy chọn nhịp đọc phù hợp, tạm dừng khi cần và quay lại với ngữ cảnh.\n\nBạn là người quyết định tốc độ của mình.'
 const statusLabel = { empty: 'Sẵn sàng khi bạn sẵn sàng', ready: 'Sẵn sàng đọc', playing: 'Đang đọc', paused: 'Đã tạm dừng', completed: 'Đã đọc hết' }
@@ -17,6 +19,9 @@ export function App() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const pdfInput = useRef<HTMLInputElement>(null)
+  const wasPdf = useRef(false)
   const [focus, setFocus] = useState(false)
   const [controls, setControls] = useState(true)
   const [context, setContext] = useState(false)
@@ -45,8 +50,13 @@ export function App() {
   const backupReadId = useRef(0)
   const text = doc ? currentText(doc) : ''
   const dirty = doc ? draft !== text : draft.length > 0
-  const available = ready && reader.chunks.length > 0 && !dirty && !loading && !backupPreview
+  const available = ready && reader.chunks.length > 0 && !dirty && !loading && !backupPreview && !pdfFile
   const chunk = reader.chunks[reader.index]
+
+  useEffect(() => {
+    if (wasPdf.current && !pdfFile) pdfInput.current?.focus()
+    wasPdf.current = !!pdfFile
+  }, [pdfFile])
 
   useEffect(() => {
     if (wasPreview.current && !backupPreview) backupInput.current?.focus()
@@ -275,13 +285,13 @@ export function App() {
   }
 
   return <div className="app-shell">
-    <header className="site-header" inert={focus || !!backupPreview}>
+    <header className="site-header" inert={focus || !!backupPreview || !!pdfFile}>
       <a className="wordmark" href="#main"><span className="brand-mark" aria-hidden="true">o<span /></span>oneword<span className="brand-period">.</span></a>
       <span className="header-note"><span className="status-dot" /> Một khoảng riêng để đọc</span>
     </header>
 
     {!ready && <p role="status">Đang mở dữ liệu trên thiết bị…</p>}
-    <main id="main" inert={!ready || !!backupPreview}>
+    <main id="main" inert={!ready || !!backupPreview || !!pdfFile}>
       <div className="intro" inert={focus}>
         <p className="eyebrow">ĐỌC TẬP TRUNG</p>
         <h1>Từng nhịp chữ.<br /><span>Theo nhịp của bạn.</span></h1>
@@ -300,6 +310,7 @@ export function App() {
       <div className="workspace">
         <section className="editor-panel" aria-labelledby="source-title" inert={focus}>
           <div className="panel-heading"><div><span className="step">01</span><h2 id="source-title">Văn bản của bạn</h2></div>
+            <label className={`file-button ${loading ? 'disabled' : ''}`}>Mở PDF<input ref={pdfInput} type="file" accept=".pdf,application/pdf" aria-label="Mở tệp PDF" disabled={loading} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; engine.pause(); if (dirty) { setError('Áp dụng hoặc hoàn tác văn bản đang nhập trước khi mở PDF.'); return }; setError(''); setPdfFile(file) }} /></label>
             <label className={`file-button ${loading ? 'disabled' : ''}`}>Mở TXT <span aria-hidden="true">↗</span><input type="file" accept=".txt,text/plain" aria-label="Mở tệp TXT" disabled={loading} onChange={(event) => { void importFile(event.target.files?.[0]); event.target.value = '' }} /></label>
           </div>
           <div className="source-meta"><span>{doc?.name ?? 'Dán văn bản để bắt đầu'}</span><span>UTF-8 · tối đa 2 MB</span></div>
@@ -312,6 +323,7 @@ export function App() {
           {!doc && <button className="sample-button" disabled={loading} onClick={() => { if (!draft || window.confirm('Thay văn bản đang nhập bằng đoạn mẫu?')) openText(sample, 'Đoạn đọc thử') }}>Chưa có văn bản? <span>Thử một đoạn ngắn</span></button>}
           {loading && <div className="loading" role="status">Đang đọc tệp… <button onClick={() => { importId.current++; setLoading(false); setNotice('Đã hủy mở tệp.') }}>Hủy</button></div>}
           {doc && <details className="original"><summary>Xem bản gốc · không chỉnh sửa</summary><pre data-testid="original-text">{doc.original}</pre></details>}
+          {doc?.pdf && <details className="original"><summary>Nguồn PDF · {doc.pdf.pageCount} trang</summary><p>Chỉ lưu chữ trích xuất và thông tin trang, không lưu tệp PDF.</p>{doc.pdf.pages.map(p => <section key={p.number}><h3>Trang {p.number}</h3>{p.warnings.map(w => <p key={w}>{warningLabels[w]}</p>)}<pre>{doc.original.slice(p.start, p.end) || '(Không có chữ)'}</pre></section>)}</details>}
           <p className="session-note">Bản gốc, bản sửa, bản nháp và vị trí đọc được lưu trên thiết bị. Tải lại luôn dừng đọc; bấm tiếp tục khi sẵn sàng.</p>
         </section>
 
@@ -357,7 +369,12 @@ export function App() {
       </div>
       <div className="messages" inert={focus}>{error && <p className="error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{dirty && doc && <p>Văn bản có thay đổi. Áp dụng hoặc hoàn tác trước khi đọc.</p>}</div>
     </main>
-    <footer inert={focus || !!backupPreview}><span>Văn bản ở trên thiết bị của bạn. Không gửi lên server.</span><span>ONEWORD / M1b</span></footer>
+    <footer inert={focus || !!backupPreview || !!pdfFile}><span>Văn bản ở trên thiết bị của bạn. Không gửi lên server.</span><span>ONEWORD / M2</span></footer>
+    {pdfFile && <PdfImport file={pdfFile} onCancel={() => { setPdfFile(null); setNotice('Đã hủy nhập PDF. Không tạo tài liệu; phiên trước được giữ nguyên.') }} onAccept={(result, working) => {
+      const next = createPdfDocument(result, pdfFile.name, working)
+      publishDocument(next); setDraft(working); setError(''); setContext(false); engine.load(working, settings); setPdfFile(null)
+      setNotice('Đã tạo tài liệu từ PDF. Bản trích xuất gốc được giữ riêng. Bấm đọc khi sẵn sàng; kiểm tra trạng thái lưu trên thiết bị.')
+    }} />}
     {backupPreview && <div className="restore-overlay"><section role="dialog" aria-modal="true" aria-label="Xem trước khôi phục" className="restore-dialog" onKeyDown={e => { if (e.key === 'Escape' && !restoring) setBackupPreview(null); if (e.key === 'Tab') { const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]; const next = buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length]; e.preventDefault(); next?.focus() } }}><h2>Khôi phục sao lưu</h2><p>{backupPreview.added} tài liệu mới · {backupPreview.duplicates} tài liệu trùng hoàn toàn.</p><p>Gộp và giữ mọi tài liệu có sẵn. Tài liệu trùng giữ vị trí đọc hiện tại. Thiết lập, tài liệu đang mở và bản nháp của sao lưu chỉ được nhận khi thư viện hiện tại rỗng.</p><p>Không có tài liệu nào bị xóa hoặc ghi đè.</p><button autoFocus disabled={restoring} onClick={() => void confirmRestore()}>Xác nhận khôi phục</button><button disabled={restoring} onClick={() => setBackupPreview(null)}>Hủy khôi phục</button></section></div>}
     {focus && notice.startsWith('Trình duyệt') && <span className="sr-only" role="status">{notice}</span>}
   </div>

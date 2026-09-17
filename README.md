@@ -1,8 +1,8 @@
 # OneWord
 
-Trình đọc TXT/dán văn bản theo nhịp RSVP. Chặng hiện tại: **M1b**, lưu tài liệu/bản sửa/vị trí/thiết lập bằng IndexedDB trên trình duyệt và có Personal Backup JSON.
+Trình đọc TXT/PDF/dán văn bản theo nhịp RSVP. Chặng hiện tại: **M2**, trích xuất lớp chữ PDF tại máy, xem/sửa trước khi đọc; lưu tài liệu/bản sửa/vị trí/thiết lập bằng IndexedDB và có Personal Backup JSON.
 
-M1a đã được chấp nhận tại baseline `f57c872`. Kiểm chứng M1b và giới hạn trong [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md).
+M1a và M1b đã được chấp nhận tại `f57c872` và `3078e62`. Kiểm chứng và giới hạn trong [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md).
 
 ## Chạy local
 
@@ -36,6 +36,18 @@ Chọn tài liệu đã lưu trong thanh dữ liệu hoặc **Tạo văn bản m
 
 IndexedDB thuộc origin/trình duyệt này; đổi port dev/preview là kho khác. Trình duyệt có thể dọn dữ liệu. Giữ backup JSON ở nơi riêng tư; file không mã hóa. Đóng cưỡng bức có thể mất phần sau checkpoint cuối. Chưa có PWA/offline app shell.
 
+## Mở PDF
+
+Chọn **Mở PDF** → xem tiến độ trang X/N → đối chiếu cảnh báo và bản trích xuất gốc theo trang → sửa văn bản → **Lưu và tiếp tục đến trình đọc**. Trình đọc không tự phát. Hãy áp dụng/hoàn tác văn bản đang nhập trước khi mở PDF. **Hủy nhập PDF** hoặc Escape bỏ toàn bộ preview, giữ nguyên tài liệu trước đó. Preview chưa lưu; đóng/reload có cảnh báo mất preview.
+
+PDF.js **6.3.289** đọc File bằng worker local, theo từng trang/stream chữ; không render trang ra canvas. PDF, chữ và metadata không upload. Worker, CMaps và font chuẩn được phục vụ như tài nguyên tĩnh cùng origin, chỉ tải khi cần; không CDN. Không chạy PDF JavaScript, attachment hoặc XFA.
+
+Giữ raw text và ranh giới/cảnh báo từng trang bất biến; bản làm việc chỉ gom tab/space/NBSP, chuẩn hóa CRLF, bỏ khoảng trắng đầu/cuối dòng và gom dòng trống. Giữ Unicode, xuống dòng đơn và mọi dấu gạch nối, kể cả `informa-\ntion`; người dùng có thể tự sửa. Có nút trở về bản chuẩn hóa hoặc dùng raw.
+
+Lưu chữ gốc, revisions, filename, số trang, thời điểm/phiên bản extractor và cảnh báo; **không lưu PDF binary hoặc ảnh trang**. Backup v2 đọc được backup M1b v1; DB v1 nâng lên v2 bằng transaction, giữ dữ liệu cũ. M1b cũ không đọc được kho v2.
+
+Giới hạn: 50 MiB/tệp, 500 trang, 2 MiB chữ và 120 giây cho một lần xử lý PDF.js. PDF ảnh/scan hoặc trắng hoàn toàn báo không có chữ, không tạo tài liệu rỗng; mixed PDF ghi rõ trang thiếu/ít chữ. Chưa OCR và chưa nhập mật khẩu: PDF cần mật khẩu bị từ chối rõ ràng. File hỏng/không có trang/quá giới hạn bị chặn. Hai cột, bảng, footnote, font mapping sai hoặc công thức có thể trích xuất sai; heuristic chỉ cảnh báo, không bảo đảm đúng thứ tự. Không sửa thứ tự tự động.
+
 ## Kiểm tra
 
 ```powershell
@@ -43,6 +55,7 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
+npm audit
 ```
 
 Playwright chạy trên Ubuntu WSL được hỗ trợ, không chạy Windows 10 làm bằng chứng hỗ trợ chính thức:
@@ -55,7 +68,7 @@ Script dùng Node Linux portable trong `.tools` nếu có, nếu không dùng No
 
 ## Phạm vi
 
-M1b không có PDF/OCR, FSRS/flashcard/quiz, Study Pack, PWA, tài khoản, backend, AI API, telemetry hoặc cloud sync. Không có nội dung người dùng gửi lên server. Không có media ngoài hay font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ.
+M2 không có OCR, FSRS/flashcard/quiz, Study Pack, PWA, tài khoản, backend, AI API, telemetry hoặc cloud sync. Không có nội dung người dùng gửi lên server. Không có media ngoài hay font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ.
 
 Giấy phép dự án chưa được chọn. Không có LICENSE; MIT chưa được duyệt, AGPL-3.0 đang được cân nhắc. Không commit/push/deploy tự động.
 

@@ -1,10 +1,11 @@
 import { freezeDocument, validateText, type TextDocument } from './document'
 import { type LibraryData, type Preferences, type ReadingPosition } from './library'
 import { type ReaderSettings } from '../domain/reader'
+import { MAX_PDF_PAGES, pdfWarnings, type PdfSource, type PdfWarning } from './pdf-text'
 
 export const MAX_BACKUP_BYTES = 32 * 1024 * 1024
 export const BACKUP_TYPE = 'oneword-personal-backup'
-export interface BackupEnvelope { type: typeof BACKUP_TYPE; schemaVersion: 1; exportedAt: string; data: LibraryData }
+export interface BackupEnvelope { type: typeof BACKUP_TYPE; schemaVersion: 2; exportedAt: string; data: LibraryData }
 function invalid(message = 'Cấu trúc hoặc tham chiếu không hợp lệ.'): never { throw new Error(message) }
 function object(value: unknown, keys: string[]): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return invalid()
@@ -32,9 +33,10 @@ export function validateLibrary(value: unknown): LibraryData {
   const data = object(value, ['documents', 'positions', 'preferences', 'activeDocumentId', 'draft'])
   const ids = new Set<string>(), revisionIds = new Set<string>()
   const documents: TextDocument[] = list(data.documents, 100).map(value => {
-    const d = object(value, ['id', 'source', 'createdAt', 'version', 'original', 'name', 'revisions', 'revision'])
+    const isPdf = !!value && typeof value === 'object' && 'source' in value && value.source === 'pdf'
+    const d = object(value, ['id', 'source', 'createdAt', 'version', 'original', 'name', 'revisions', 'revision', ...(isPdf ? ['pdf'] : [])])
     const documentId = id(d.id)
-    if (ids.has(documentId) || (d.source !== 'txt' && d.source !== 'paste')) return invalid('ID tài liệu trùng hoặc nguồn không hợp lệ.')
+    if (ids.has(documentId) || (d.source !== 'txt' && d.source !== 'paste' && d.source !== 'pdf')) return invalid('ID tài liệu trùng hoặc nguồn không hợp lệ.')
     ids.add(documentId)
     let lastNumber = -1
     const revisions = list(d.revisions, 1000).map(value => {
@@ -46,7 +48,24 @@ export function validateLibrary(value: unknown): LibraryData {
     })
     const original = text(d.original), version = integer(d.version, 1, Number.MAX_SAFE_INTEGER)
     if (!revisions.length || revisions[0].number !== 0 || revisions[0].text !== original || version <= lastNumber) return invalid('Bản gốc hoặc version tài liệu không hợp lệ.')
-    return freezeDocument({ id: documentId, source: d.source, createdAt: timestamp(d.createdAt), version, original, name: string(d.name), revisions, revision: integer(d.revision, 0, revisions.length - 1) })
+    let pdf: PdfSource | undefined
+    if (isPdf) {
+      const p = object(d.pdf, ['pageCount', 'extractedAt', 'extractor', 'pages'])
+      const pageCount = integer(p.pageCount, 1, MAX_PDF_PAGES)
+      let end = -2
+      const pages = list(p.pages, MAX_PDF_PAGES).map((value, index) => {
+        const page = object(value, ['number', 'start', 'end', 'warnings'])
+        const start = integer(page.start, 0, original.length)
+        if (page.number !== index + 1 || start !== end + 2 || index > 0 && original.slice(end, start) !== '\n\n') return invalid('Liên kết trang PDF không hợp lệ.')
+        end = integer(page.end, start, original.length)
+        const warnings = list(page.warnings, pdfWarnings.length).map(w => { if (!pdfWarnings.includes(w as PdfWarning)) return invalid(); return w as PdfWarning })
+        if (new Set(warnings).size !== warnings.length) return invalid()
+        return { number: index + 1, start, end, warnings }
+      })
+      if (pages.length !== pageCount || end !== original.length) return invalid('Số trang PDF không hợp lệ.')
+      pdf = { pageCount, extractedAt: timestamp(p.extractedAt), extractor: string(p.extractor, 80), pages }
+    }
+    return freezeDocument({ id: documentId, source: d.source, ...(pdf ? { pdf } : {}), createdAt: timestamp(d.createdAt), version, original, name: string(d.name), revisions, revision: integer(d.revision, 0, revisions.length - 1) })
   })
   const positionIds = new Set<string>()
   const positions: ReadingPosition[] = list(data.positions, 100).map(value => {
@@ -69,7 +88,7 @@ export function validateLibrary(value: unknown): LibraryData {
   return { documents, positions, preferences: preferences(data.preferences), activeDocumentId, draft }
 }
 export function exportBackup(data: LibraryData): string {
-  const envelope: BackupEnvelope = { type: BACKUP_TYPE, schemaVersion: 1, exportedAt: new Date().toISOString(), data: validateLibrary(data) }
+  const envelope: BackupEnvelope = { type: BACKUP_TYPE, schemaVersion: 2, exportedAt: new Date().toISOString(), data: validateLibrary(data) }
   const json = JSON.stringify(envelope, null, 2)
   if (new TextEncoder().encode(json).byteLength > MAX_BACKUP_BYTES) return invalid('Sao lưu vượt giới hạn 32 MiB.')
   return json
@@ -88,8 +107,10 @@ export function parseBackup(json: string): BackupEnvelope {
   try { parsed = JSON.parse(json) } catch { return invalid('Không đọc được JSON sao lưu.') }
   const envelope = object(parsed, ['type', 'schemaVersion', 'exportedAt', 'data'])
   if (envelope.type !== BACKUP_TYPE) return invalid('Không phải Personal Backup của OneWord.')
-  if (envelope.schemaVersion !== 1) return invalid('Chưa hỗ trợ phiên bản sao lưu này. Không thay đổi dữ liệu hiện có.')
-  return { type: BACKUP_TYPE, schemaVersion: 1, exportedAt: timestamp(envelope.exportedAt), data: validateLibrary(envelope.data) }
+  if (envelope.schemaVersion !== 1 && envelope.schemaVersion !== 2) return invalid('Chưa hỗ trợ phiên bản sao lưu này. Không thay đổi dữ liệu hiện có.')
+  const data = validateLibrary(envelope.data)
+  if (envelope.schemaVersion === 1 && data.documents.some(d => d.source === 'pdf')) return invalid('PDF cần định dạng sao lưu v2.')
+  return { type: BACKUP_TYPE, schemaVersion: 2, exportedAt: timestamp(envelope.exportedAt), data }
 }
 export function mergeBackup(current: LibraryData, incoming: LibraryData) {
   const local = validateLibrary(current), backup = validateLibrary(incoming)

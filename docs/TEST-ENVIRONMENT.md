@@ -1,4 +1,43 @@
-# Môi trường kiểm thử M1a / M1b
+# Môi trường kiểm thử M1a / M1b / M2
+
+## M2 — kiểm chứng 17/09/2026
+
+Baseline trước sửa: `3078e62`, `main`, working tree sạch, root `D:/oneword`. Chỉ triển khai M2; không commit/push/deploy. Các phần M1a/M1b bên dưới là lịch sử, không phải giới hạn hiện tại của M2.
+
+Dependency: `npm view pdfjs-dist@6.3.289 version engines dependencies optionalDependencies license dist.unpackedSize --json` và candidate 5.4.624; đối chiếu release/API Mozilla trước khi pin. Lệnh cài: `npm install --save-exact pdfjs-dist@6.3.289 --ignore-scripts`. Node Windows 22.17 và WSL 24.21 đáp ứng engine >=22.13 hoặc >=24. Không thêm test PDF generator library, OCR hay server. Optional @napi-rs/canvas 1.0.9 nằm trong lock do upstream, không vào browser bundle.
+
+| Lệnh thực chạy ở lượt cuối | Kết quả |
+| --- | --- |
+| `npm run typecheck` | PASS, exit 0 |
+| `npm run lint` | PASS, exit 0 |
+| `npm test` | PASS, **67 tests / 7 files**, exit 0 |
+| `npm run build` | PASS, exit 0 |
+| `npm audit` | **0 vulnerabilities**, exit 0 |
+| `wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh` | PASS, **34 tests, 0 fail, 0 skip**, exit 0, 1.6 phút |
+| `git diff --check` | PASS |
+
+12 ca browser PDF cộng toàn bộ 22 ca baseline. Native visibility đạt trong 32.6s, sandbox giữ nguyên. Typecheck/lint chạy lại sau khi thêm kiểm console/pageerror cho mọi test PDF, đều exit 0. Không skip, retry hay giảm assertion để có kết quả xanh. Một test adapter mới ban đầu dùng lại Dexie đã close nên fail DatabaseClosedError; sửa harness tạo adapter mới để kiểm reopen thực tế, giữ kiểm dữ liệu/immutability. Unit lifecycle mock transport được ghi rõ trong tên suite; kiểm PDF.js thật nằm ở browser.
+
+### Bằng chứng M2
+
+- `tests/fixtures/pdf.ts` sinh PDF tổng hợp tại test, không giữ sách/tài liệu bên thứ ba: Helvetica text, nhiều trang, một image XObject thật không lớp chữ, mixed, hai cột, ToUnicode cho `Tiếng Việt é Ω 中文 😀`, corrupt/empty/no-pages/501 pages, password Standard R2 và PDF JavaScript action không được thực thi. Fixture password dùng mật khẩu thử `secret`, không phải thông tin người dùng.
+- `pdf-reader-reload-privacy`: mở PDF thật → preview (DB vẫn 0 documents) → sửa → tạo raw revision 0 và edited revision 1 → đọc đến `one` → pause/save → reload vẫn `one`, không autoplay → resume sang `two`. Raw giữ `informa-\ntion`, well-being/state-of-the-art/x-ray/A-B/-4. IndexedDB có source=pdf, filename, pageCount, extractor, timestamp, ranh giới/cảnh báo; không PDF bytes.
+- `artifacts/m2-pdf-privacy.json`: lưu evidence với raw/edited fixtures, vị trí trước/sau, `errors: []` và danh sách request. Mọi request là **GET cùng origin**, không query/body; chỉ app assets, worker và LiberationSans local. Không PDF/text/metadata upload, không external request. Test kiểm PDF action không đặt biến toàn cục trước và sau reload. Mọi ca PDF bắt pageerror/console.error và assert rỗng, gồm lỗi file/hủy.
+- `scanned-pdf-no-document`: PDF image-only thật báo không có chữ/OCR không có, không nút tiếp tục, DB 0 documents. Ảnh `artifacts/m2-scan-warning.png`.
+- Mixed 3 trang giữ trang scan với cảnh báo no-text; hai cột synthetic kích hoạt reading-order, không tự sort. Unicode và combining accent giữ nguyên trong working text. UI luôn cảnh báo thứ tự có thể sai kể cả heuristic không phát hiện.
+- `pdf-cancel-progress`: file 400 trang cho tiến độ >0 và <hoàn thành, hủy trả focus về nút mở, giữ document đã có, không document dở; nhập lại file khác thành công. Unit kiểm không gọi trang thứ hai sau abort và destroy/cleanup cả lỗi hoặc thành công.
+- PDF backup v2 export thật → clear test IndexedDB → preview không ghi → confirm → reload: record PDF, metadata, raw và edited giữ nguyên. Unit/integration còn kiểm metadata không thể bị sửa, v1 backup giữ IDs/history/draft, migration DB v1→v2 giữ data/generation/positions và rollback khi meta version sai; kho tương lai v3 bị reject.
+- Đã mở kiểm ảnh `artifacts/m2-pdf-preview.png`, `artifacts/m2-pdf-mobile.png`, `artifacts/m2-scan-warning.png`. Viewport hẹp 390px không tràn ngang, undo chuẩn hóa và Escape không tạo document. Đây là emulation, không chứng minh thiết bị di động thật. Reader/fullscreen/hidden/TXT/paste/persistence baseline đều chạy lại trong suite đầy đủ.
+
+### Đo mẫu và bundle
+
+`artifacts/m2-pdf-performance.json`: 100 trang × 30 dòng synthetic, input **285.430 bytes**, working **142.958 ký tự**, từ chọn tệp đến preview **1.178 ms**. Timer 50ms còn chạy 23 nhịp; PerformanceObserver ghi một long task 52ms. Main-thread JSHeapUsedSize trước **2.483.292** và sau **24.576.416 bytes**; không phải peak heap, không bao gồm worker/native memory. Không có canvas trong DOM; runtime không gọi page.render. Kết quả mẫu này không đại diện PDF sát giới hạn hoặc layout phức tạp, không là bảo đảm RAM/latency.
+
+Build: entry JS **362.49 kB / gzip 115.62 kB**, CSS **13.22 kB / gzip 3.87 kB**. PDF API lazy **429.74 kB / gzip 128.69 kB**, worker **1,265.41 kB**, toàn bộ font/CMap/notices local **1.975.967 bytes** trên đĩa (chỉ request tài nguyên cần dùng). Không đưa toàn bộ package pdfjs-dist 34.78 MB lên browser. Build output ở `artifacts/m2-build.log`.
+
+Giới hạn thực tế: 50 MiB/file trước đọc, 500 trang, 2 MiB chữ và 100.000 items/trang; timeout parser 120s chưa được ép timeout trong browser. Cancel File.arrayBuffer/module download đang chạy là best-effort; kết quả cũ không được parse/publish. Giới hạn không bảo đảm RAM tuyệt đối trước mọi PDF đối nghịch. Không OCR, không nhập password, không reconstruct layout, không bảo đảm font mapping/Unicode/reading order hoàn hảo. Chưa kiểm PDF sát 50 MiB, real mobile, Safari/Firefox, screen reader chuyên dụng. Không persist PDF binary/page images. Không PWA/service worker/offline guarantee.
+
+Report: `playwright-report/index.html`; screenshots/JSON/log ở `artifacts/`, downloads/traces ở `test-results/`, đều bị Git ignore. Chỉ dữ liệu tổng hợp của test. Lệnh chạy lại WSL giữ nguyên ở mục Chạy lại bên dưới.
 
 ## M1b — kiểm chứng hiện tại, 16/09/2026
 
