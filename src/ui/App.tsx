@@ -6,6 +6,8 @@ import { exportBackup, MAX_BACKUP_BYTES, mergeBackup, parseBackup, type BackupEn
 import { IndexedDbStorage } from '../storage/indexed-db'
 import { PdfImport } from './PdfImport'
 import { warningLabels } from '../application/pdf-text'
+import { StudyArea } from './StudyArea'
+import { validateStudyLibrary, type StudyPack } from '../application/study-pack'
 
 const sample = 'Đọc chậm lại một chút.\n\nĐôi khi, điều ta cần không phải là thêm thông tin, mà là một khoảng lặng để chú ý. Hãy chọn nhịp đọc phù hợp, tạm dừng khi cần và quay lại với ngữ cảnh.\n\nBạn là người quyết định tốc độ của mình.'
 const statusLabel = { empty: 'Sẵn sàng khi bạn sẵn sàng', ready: 'Sẵn sàng đọc', playing: 'Đang đọc', paused: 'Đã tạm dừng', completed: 'Đã đọc hết' }
@@ -29,10 +31,14 @@ export function App() {
   const [progress, setProgress] = useState(true)
   const [fontSize, setFontSize] = useState(48)
   const [documents, setDocuments] = useState<readonly TextDocument[]>([])
+  const [packs, setPacks] = useState<readonly StudyPack[]>([])
+  const [study, setStudy] = useState(false)
+  const [studyDirty, setStudyDirty] = useState(false)
+  const studyMutation = useRef(false)
   const [ready, setReady] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'saving' | 'saved' | 'error'>('saving')
   const [saveError, setSaveError] = useState('')
-  const [backupPreview, setBackupPreview] = useState<{ backup: BackupEnvelope; added: number; duplicates: number } | null>(null)
+  const [backupPreview, setBackupPreview] = useState<{ backup: BackupEnvelope; added: number; duplicates: number; packsAdded: number; packsDuplicates: number } | null>(null)
   const [restoring, setRestoring] = useState(false)
   const latest = useRef<LibraryData>(emptyLibrary())
   const previousCheckpoint = useRef({ document: doc, status: reader.status })
@@ -50,7 +56,7 @@ export function App() {
   const backupReadId = useRef(0)
   const text = doc ? currentText(doc) : ''
   const dirty = doc ? draft !== text : draft.length > 0
-  const available = ready && reader.chunks.length > 0 && !dirty && !loading && !backupPreview && !pdfFile
+  const available = ready && reader.chunks.length > 0 && !dirty && !loading && !backupPreview && !pdfFile && !study
   const chunk = reader.chunks[reader.index]
 
   useEffect(() => {
@@ -66,6 +72,7 @@ export function App() {
   function showLibrary(data: LibraryData) {
     latest.current = data
     setDocuments(data.documents)
+    setPacks(data.packs)
     const active = data.documents.find(d => d.id === data.activeDocumentId) ?? null
     setDoc(active); setDraft(data.draft?.text ?? (active ? currentText(active) : ''))
     setGlow(data.preferences.glow); setProgress(data.preferences.progress); setFontSize(data.preferences.fontSize)
@@ -92,12 +99,24 @@ export function App() {
       const index = positions.findIndex(p => p.documentId === doc.id)
       if (index < 0) positions.push(position); else positions[index] = position
     }
-    const data: LibraryData = { documents, positions, preferences: { reader: settings, glow, progress, fontSize }, activeDocumentId: doc?.id ?? null, draft: dirty ? { documentId: doc?.id ?? null, text: draft } : null }
+    const data: LibraryData = { packs, documents, positions, preferences: { reader: settings, glow, progress, fontSize }, activeDocumentId: doc?.id ?? null, draft: dirty ? { documentId: doc?.id ?? null, text: draft } : null }
     latest.current = data
     const previous = previousCheckpoint.current
     persistence.update(data, previous.document !== doc || previous.status === 'playing' && reader.status !== 'playing')
     previousCheckpoint.current = { document: doc, status: reader.status }
-  }, [ready, restoring, documents, doc, draft, dirty, settings, glow, progress, fontSize, chunk?.start, reader.status, persistence])
+  }, [ready, restoring, packs, documents, doc, draft, dirty, settings, glow, progress, fontSize, chunk?.start, reader.status, persistence])
+
+  async function saveStudyPacks(next: readonly StudyPack[]) {
+    if (studyMutation.current) throw new Error('Đang lưu nội dung, vui lòng chờ.')
+    const data = { ...latest.current, packs: validateStudyLibrary(next) }
+    exportBackup(data)
+    studyMutation.current = true; setRestoring(true)
+    try {
+      await persistence.restore(data)
+      latest.current = data; setPacks(data.packs)
+    } catch (cause) { throw new Error('Chưa lưu được nội dung. Dữ liệu chưa bị ghi một phần. Giữ bản đang sửa; kiểm dung lượng hoặc thay đổi ở tab khác trước khi thử lại.', { cause }) }
+    finally { studyMutation.current = false; setRestoring(false) }
+  }
 
   function publishDocument(next: TextDocument) {
     const all = documents.some(d => d.id === next.id) ? documents.map(d => d.id === next.id ? next : d) : [...documents, next]
@@ -131,7 +150,7 @@ export function App() {
       const backup = parseBackup(await file.text())
       if (request !== backupReadId.current) return
       const result = mergeBackup(latest.current, backup.data)
-      setBackupPreview({ backup, added: result.added, duplicates: result.duplicates })
+      setBackupPreview({ backup, added: result.added, duplicates: result.duplicates, packsAdded: result.packsAdded, packsDuplicates: result.packsDuplicates })
     } catch (e) { if (request === backupReadId.current) setError((e as Error).message) }
   }
 
@@ -288,10 +307,11 @@ export function App() {
     <header className="site-header" inert={focus || !!backupPreview || !!pdfFile}>
       <a className="wordmark" href="#main"><span className="brand-mark" aria-hidden="true">o<span /></span>oneword<span className="brand-period">.</span></a>
       <span className="header-note"><span className="status-dot" /> Một khoảng riêng để đọc</span>
+      <nav className="area-navigation" aria-label="Khu vực"><button aria-pressed={!study} disabled={!ready || restoring || loading} onClick={() => { if (studyDirty && !window.confirm('Rời vùng Học sẽ bỏ phần đang nhập chưa lưu. Tiếp tục?')) return; setStudy(false); setStudyDirty(false) }}>Đọc</button><button aria-pressed={study} disabled={!ready || restoring || loading} onClick={() => { engine.pause(); setStudy(true) }}>Học / Flashcards</button></nav>
     </header>
 
     {!ready && <p role="status">Đang mở dữ liệu trên thiết bị…</p>}
-    <main id="main" inert={!ready || !!backupPreview || !!pdfFile}>
+    <main id="main" hidden={study} inert={!ready || !!backupPreview || !!pdfFile || study || restoring}>
       <div className="intro" inert={focus}>
         <p className="eyebrow">ĐỌC TẬP TRUNG</p>
         <h1>Từng nhịp chữ.<br /><span>Theo nhịp của bạn.</span></h1>
@@ -369,13 +389,14 @@ export function App() {
       </div>
       <div className="messages" inert={focus}>{error && <p className="error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{dirty && doc && <p>Văn bản có thay đổi. Áp dụng hoặc hoàn tác trước khi đọc.</p>}</div>
     </main>
-    <footer inert={focus || !!backupPreview || !!pdfFile}><span>Văn bản ở trên thiết bị của bạn. Không gửi lên server.</span><span>ONEWORD / M2</span></footer>
+    {study && ready && <StudyArea packs={packs} onChange={saveStudyPacks} onDirty={setStudyDirty} />}
+    <footer inert={focus || !!backupPreview || !!pdfFile}><span>Văn bản ở trên thiết bị của bạn. Không gửi lên server.</span><span>ONEWORD / M3a</span></footer>
     {pdfFile && <PdfImport file={pdfFile} onCancel={() => { setPdfFile(null); setNotice('Đã hủy nhập PDF. Không tạo tài liệu; phiên trước được giữ nguyên.') }} onAccept={(result, working) => {
       const next = createPdfDocument(result, pdfFile.name, working)
       publishDocument(next); setDraft(working); setError(''); setContext(false); engine.load(working, settings); setPdfFile(null)
       setNotice('Đã tạo tài liệu từ PDF. Bản trích xuất gốc được giữ riêng. Bấm đọc khi sẵn sàng; kiểm tra trạng thái lưu trên thiết bị.')
     }} />}
-    {backupPreview && <div className="restore-overlay"><section role="dialog" aria-modal="true" aria-label="Xem trước khôi phục" className="restore-dialog" onKeyDown={e => { if (e.key === 'Escape' && !restoring) setBackupPreview(null); if (e.key === 'Tab') { const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]; const next = buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length]; e.preventDefault(); next?.focus() } }}><h2>Khôi phục sao lưu</h2><p>{backupPreview.added} tài liệu mới · {backupPreview.duplicates} tài liệu trùng hoàn toàn.</p><p>Gộp và giữ mọi tài liệu có sẵn. Tài liệu trùng giữ vị trí đọc hiện tại. Thiết lập, tài liệu đang mở và bản nháp của sao lưu chỉ được nhận khi thư viện hiện tại rỗng.</p><p>Không có tài liệu nào bị xóa hoặc ghi đè.</p><button autoFocus disabled={restoring} onClick={() => void confirmRestore()}>Xác nhận khôi phục</button><button disabled={restoring} onClick={() => setBackupPreview(null)}>Hủy khôi phục</button></section></div>}
+    {backupPreview && <div className="restore-overlay"><section role="dialog" aria-modal="true" aria-label="Xem trước khôi phục" className="restore-dialog" onKeyDown={e => { if (e.key === 'Escape' && !restoring) setBackupPreview(null); if (e.key === 'Tab') { const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]; const next = buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length]; e.preventDefault(); next?.focus() } }}><h2>Khôi phục sao lưu</h2><p>{backupPreview.added} tài liệu mới · {backupPreview.duplicates} tài liệu trùng hoàn toàn.</p><p>{backupPreview.packsAdded} pack mới · {backupPreview.packsDuplicates} pack trùng hoàn toàn.</p><p>Gộp và giữ mọi tài liệu có sẵn. Tài liệu trùng giữ vị trí đọc hiện tại. Thiết lập, tài liệu đang mở và bản nháp của sao lưu chỉ được nhận khi thư viện hiện tại rỗng.</p><p>Không có tài liệu nào bị xóa hoặc ghi đè.</p><button autoFocus disabled={restoring} onClick={() => void confirmRestore()}>Xác nhận khôi phục</button><button disabled={restoring} onClick={() => setBackupPreview(null)}>Hủy khôi phục</button></section></div>}
     {focus && notice.startsWith('Trình duyệt') && <span className="sr-only" role="status">{notice}</span>}
   </div>
 }

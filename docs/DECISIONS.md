@@ -1,5 +1,14 @@
 # Quyết định đã được người dùng duyệt
 
+## Phê duyệt M3a — 17/09/2026
+
+- M1a/M1b/M2 đã được chấp nhận; baseline main sạch `da305cc`. Lượt hiện tại chỉ triển khai content layer Study Pack và flashcard thủ công, persistence, preview study và import/export. Các mục M0–M2 bên dưới là lịch sử phê duyệt.
+- Yêu cầu: Study Pack content-only, ID ổn định, runtime validation, preview/confirm/atomic import, xung đột an toàn, ảnh HTTPS tham chiếu có fallback/essential, không thực thi HTML/script, giữ reader và backup cũ.
+- Chọn triển khai: Study Pack v1, aggregate store packs trong DB v3/native30, Personal Backup v3 đọc v1/v2; unknown fields bị reject. Dùng validator cục bộ có test, không thêm Ajv hoặc dependency khác.
+- Import pack trùng toàn bộ bỏ qua, khác nội dung/metadata cùng ID chặn cả pack; child ID trùng pack khác cũng chặn. Không tự merge từng thẻ. Editor sửa có chủ đích, giữ card ID/tăng revision; xóa có xác nhận.
+- Ảnh chỉ tải từng ảnh khi opt-in, anonymous CORS/no-referrer; giữ URL/alt/caption/essential, không upload/proxy/cache ứng dụng. Prompt nhờ AI là Markdown tĩnh version1, người dùng tự copy và chọn tài liệu; không AI API.
+- Dừng sau M3a; không commit/push/deploy/LICENSE, không FSRS/lịch ôn/history/ratings/quiz/backend/cloud/media upload/PWA.
+
 Nguồn: nội dung phê duyệt M0/M1 gửi ngày 16/09/2026. Chỉ ghi những quyết định đã duyệt; các con số/cách tổ chức code do triển khai chọn được mô tả riêng trong ARCHITECTURE.md.
 
 - `D:\oneword` là project root thật của OneWord. Được khởi tạo Git tại đây; không di chuyển sang repo khác.

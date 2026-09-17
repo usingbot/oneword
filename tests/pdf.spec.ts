@@ -175,7 +175,7 @@ test('representative 100-page extraction reports measured latency and UI respons
   await info.attach('pdf-performance', { body: JSON.stringify(evidence), contentType: 'application/json' })
 })
 
-test('PDF backup v2 restores original, page metadata and edited text into a fresh browser store', async ({ page, context, baseURL }, info) => {
+test('PDF Personal Backup restores original, page metadata and edited text into a fresh browser store', async ({ page, context, baseURL }, info) => {
   await page.goto('/')
   await open(page, makePdf(simplePages))
   await page.getByLabel('Văn bản PDF để chỉnh sửa').fill('backup edited reading text')

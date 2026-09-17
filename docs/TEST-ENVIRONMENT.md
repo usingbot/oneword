@@ -1,4 +1,36 @@
-# Môi trường kiểm thử M1a / M1b / M2
+# Môi trường kiểm thử M1a / M1b / M2 / M3a
+
+## M3a — kiểm chứng 17/09/2026
+
+Baseline trước sửa: `da305cc`, `main`, working tree sạch, root `D:/oneword`. Chỉ thêm Study Pack/flashcard content. Không thêm dependency; package.json/package-lock.json không đổi. Windows Node 22.17.0/npm 11.15.0; WSL Ubuntu dùng Node Linux 24.21.0/npm 11.19.0 và Chromium đã chuẩn bị ở các chặng trước. Giữ sandbox browser. Các phần M1a/M1b/M2 dưới đây là lịch sử.
+
+| Lệnh thực chạy | Kết quả cuối |
+| --- | --- |
+| `npm run typecheck` | PASS, exit 0 |
+| `npm run lint` | PASS, exit 0 |
+| `npm test` | PASS, **110 tests / 8 files**, exit 0 |
+| `npm run build` | PASS, exit 0 |
+| `npm audit` | **0 vulnerabilities**, exit 0 |
+| `git diff --check` | PASS, exit 0 |
+| `wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh` | PASS, **43 tests, 0 fail, 0 skip**, exit 0, 3.1 phút |
+
+9 ca Study mới cộng đủ 34 ca reader/PDF/persistence/native visibility. Ca native hidden cuối đạt trong 34.8s. Suite không retry hoặc skip, không giảm assertion để xanh. Lượt Study riêng ban đầu có hai locator thất bại do tên accessible của label bọc select/textarea thay đổi theo nội dung; sửa explicit aria-label, chạy lại 8/8 rồi thêm ca editor ảnh. Kiểm screenshot phát hiện header hẹp thiếu chiều cao, đã sửa và thêm assertion không chồng vùng Study. Test giới hạn export mới ban đầu có fixture chưa đủ lớn; sửa fixture 415 thẻ và kiểm cả compact dưới/pretty trên 8 MiB. Kết quả cuối ở bảng trên.
+
+### Bằng chứng M3a
+
+- `src/application/study-pack.test.ts`: 40 ca content contract — tạo pack/deck/card, sửa/chuyển/xóa giữ ID/revision; canonical export/round-trip; duplicate/conflict; malformed/type/future/required/unknown/depth/size/count/reference; URL schemes/credentials; giới hạn sau URL canonicalization và formatted export; essential/image-only; text script literal; Personal Backup v1/v2→v3 và tách content/state.
+- `src/storage/indexed-db.test.ts`: adapter thật qua fake-indexeddb, giữ test M1b→v3 và rollback; thêm M2→v3 giữ PDF original/revisions/position/draft/settings/generation, save/delete pack, stale writer không phục hồi dữ liệu đã xóa, lỗi final meta write rollback cả pack cũ/mới và reader. Đây là quota error được inject, không phải làm đầy đĩa thật.
+- Browser manual flow: tạo pack/deck/card → reload → front trước/back ẩn → reveal → sửa và chuyển deck giữ card ID/revision2 → hủy/xác nhận xóa → reload. Ca riêng thêm URL/alt/caption/essential bằng editor → reload → bỏ ảnh → revision3, không external request.
+- `artifacts/m3a-migration.json`: native IndexedDB20 được seed như M2 → app nâng30; PDF source/revisions còn nguyên, vị trí `two` được giữ. Import pack → xuất Personal Backup3 → clear kho test → restore, reader và pack đều giữ nguyên. Các fixture là dữ liệu tổng hợp.
+- `artifacts/m3a-round-trip.json`: preview chưa có packs trong DB → confirm → export JSON → xóa test pack → nhập tệp đã export → pack/deck/card IDs và nội dung bằng nhau; không position/preferences/draft/history/scheduling. Ca conflict so cả generation/snapshot trước-sau: duplicate no-op, changed same-ID/cross-pack child ID collision chặn toàn bộ.
+- `artifacts/m3a-security.json`: script/HTML nhập vào hiện như chữ, không dialog hoặc global side effect; `unexpected: []`, `dialogs: []`, `pageErrors: []`. Request ảnh chỉ xảy ra sau opt-in; header có Origin nhưng không Cookie/Referer dù context có cookie test. Server ảnh được Playwright route giả lập, không liên hệ host Internet thật. PNG hỏng trả HTTP200 để kiểm fallback alt/caption/essential mà không tạo lỗi transport giả. Ca riêng ảnh SVG trong img có script không thực thi, naturalWidth=100, mặt sau chưa reveal không tải ảnh. Tất cả ca Study assert console.error/pageerror rỗng.
+- Đã mở kiểm screenshot desktop `artifacts/m3a-study-reveal.png`, import `artifacts/m3a-import-preview.png` và narrow390px `artifacts/m3a-study-mobile.png`; keyboard Enter reveal, không overflow ngang hoặc header chồng content. `artifacts/m3a-literal-content.png` lưu trạng thái text độc hại dưới dạng chữ. Đây là mobile emulation, chưa test thiết bị thật/screen reader chuyên dụng.
+
+Build cuối: entry JS **386.17 kB / gzip 122.16 kB**, CSS **16.12 kB / gzip 4.43 kB**; PDF API lazy **429.74 kB / gzip 128.69 kB**, worker **1,265.41 kB**. Output ở `artifacts/m3a-build.log`. Không benchmark RAM/latency thư viện Study sát giới hạn; validator và snapshot serialize còn chạy trên main thread. Không có dependency mới.
+
+Giới hạn: import whole-pack, không merge từng card hoặc tự đổi ID; editor không có undo/history thẻ, chưa sửa metadata pack/deck đã tạo. Ảnh cần HTTPS/CORS và opt-in, host thấy IP/Origin; ảnh có thể mất hoặc thay đổi, không bảo đảm offline. Không PWA/service worker. App cũ không mở DB30; cần giữ bản backup cũ trước khi muốn quay phiên bản. Study form chưa lưu không nằm trong Personal Backup. Chưa kiểm Firefox/Safari, điện thoại thật hoặc thư viện 10.000 thẻ trong browser. FSRS/review/quiz không được triển khai.
+
+Report đầy đủ: `playwright-report/index.html`; artifacts/JSON/log và test-results đều Git-ignored, không có dữ liệu người dùng. Không stage/commit/push/deploy; AGENTS/project skills được giữ nguyên.
 
 ## M2 — kiểm chứng 17/09/2026
 

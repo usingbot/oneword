@@ -1,18 +1,20 @@
 import { currentText, type TextDocument } from './document'
 import { defaultSettings, segment, type ReaderSettings } from '../domain/reader'
+import type { StudyPack } from './study-pack'
 
 export interface Preferences { reader: ReaderSettings; glow: boolean; progress: boolean; fontSize: number }
 export const defaultPreferences: Preferences = { reader: defaultSettings, glow: true, progress: true, fontSize: 48 }
 export interface ReadingPosition { documentId: string; revisionId: string; offset: number; settings: ReaderSettings; updatedAt: string }
 export interface Draft { documentId: string | null; text: string }
 export interface LibraryData {
+  packs: readonly StudyPack[]
   documents: readonly TextDocument[]
   positions: readonly ReadingPosition[]
   preferences: Preferences
   activeDocumentId: string | null
   draft: Draft | null
 }
-export const emptyLibrary = (): LibraryData => ({ documents: [], positions: [], preferences: structuredClone(defaultPreferences), activeDocumentId: null, draft: null })
+export const emptyLibrary = (): LibraryData => ({ packs: [], documents: [], positions: [], preferences: structuredClone(defaultPreferences), activeDocumentId: null, draft: null })
 export interface StoredLibrary { data: LibraryData; generation: number }
 export interface ReaderStorage {
   read(): Promise<StoredLibrary>

@@ -1,18 +1,20 @@
-# Kiến trúc M2
+# Kiến trúc M3a
 
-Baseline M1b: 3078e62. M2 thêm PDF text ingestion; giữ engine RSVP, fullscreen và luồng TXT/paste.
+Baseline M2: da305cc. M3a thêm nội dung Study Pack, editor và import/export; giữ engine RSVP, fullscreen và luồng TXT/paste/PDF.
 
 ## Ranh giới
 
 - src/ui/App.tsx: UI, lựa chọn tài liệu, adapter keyboard/fullscreen/visibility, hydrate state và gửi snapshot cho application. Không có lệnh IndexedDB/transaction trong React. UI tạo adapter tại điểm lắp ghép.
 - src/application/document.ts: tạo document/revision bất biến, TXT UTF-8, sửa/undo; cấp UUID và timestamp.
 - src/application/library.ts: interface ReaderStorage, dữ liệu thư viện, kiểm resume và coordinator Persistence. Application không phụ thuộc kiểu Dexie.
-- src/application/backup.ts: validator runtime, xuất JSON envelope v2, đọc v1/v2, tham chiếu và merge policy; không tải schema hoặc gọi API.
+- src/application/backup.ts: validator runtime, xuất Personal Backup v3, đọc v1/v2/v3, tham chiếu và merge policy; không tải schema hoặc gọi API.
+- src/application/study-pack.ts: contract Study Pack v1, parse/validate/canonicalize, giới hạn, merge policy và các thao tác nội dung thuần; không có scheduling hoặc storage API.
+- src/ui/StudyArea.tsx: editor, preview import và xem từng mặt thẻ; chỉ chuyển snapshot đã kiểm cho application. RemoteImage chỉ mount img sau opt-in.
 - src/application/pdf.ts: lazy-load PDF.js 6.3.289 và worker được Vite đóng gói; File → Uint8Array chuyển cho worker → streamTextContent từng trang → cleanup/destroy.
 - src/application/pdf-text.ts: dựng raw text theo thứ tự item, lưu ranh giới trang, cảnh báo hình học và chuẩn hóa whitespace thuần/deterministic.
 - src/ui/PdfImport.tsx: preview tạm riêng, progress, hủy, edit/undo; chỉ publish qua createPdfDocument sau khi người dùng xác nhận.
 - src/domain/reader.ts: segmentation/duration/ReaderEngine độc lập React/storage; giữ timing, hidden pause và không chạy bù của M1a.
-- src/storage/indexed-db.ts: adapter Dexie duy nhất, transaction xuyên bốn stores, kiểm generation và immutability.
+- src/storage/indexed-db.ts: adapter Dexie duy nhất, transaction xuyên năm stores, kiểm generation và immutability nguồn reader. Store packs chứa aggregate StudyPack.
 - scripts/serve-built.mjs: server dist loopback phục vụ test, không phải backend dữ liệu.
 
 ## Hydration và checkpoint
@@ -31,11 +33,19 @@ Kill browser/mất điện không bảo đảm flush cuối. Có thể mất ti�
 
 Mọi writer kiểm meta.generation trong readwrite transaction, so với generation đã đọc; thành công tăng generation. Tab stale bị chặn, giữ memory để backup. Không tự merge edits hoặc refresh tab đang đọc; không thêm workflow BroadcastChannel hay conflict system FSRS.
 
-Restore parse/validate/merge preview trước, xác nhận rồi flush session và ghi merged snapshot trong một transaction. Lỗi bước cuối rollback cả document/settings/position/meta. UI chỉ nhận restore sau commit. Không có replace/delete.
+Restore parse/validate/merge preview trước, xác nhận rồi flush session và ghi merged snapshot trong một transaction. Lỗi bước cuối rollback cả document/settings/position/meta/packs. UI chỉ nhận restore sau commit. Restore không replace/delete; editor cho phép sửa/xóa nội dung pack qua cùng transaction, có xác nhận xóa.
+
+## Nội dung Study Pack
+
+Khu vực Study làm reader tạm dừng và ẩn/inert; không thay layout/timing đọc. Mỗi pack chứa decks/cards với ID ổn định; editor tạo UUID, giữ ID khi sửa/chuyển deck và tăng revision. UI xuất hiện thay đổi đã lưu chỉ sau transaction thành công; lỗi giữ form để sửa/xuất, không ghi nửa pack. Shared generation chặn tab stale kể cả khi ghi nội dung học. Adapter theo dõi reference của packs nên checkpoint vị trí đọc không ghi lại packs chưa đổi; xóa có chủ đích đối chiếu ID trong cùng transaction.
+
+DB Dexie v3/native30 thêm store packs, upgrade chỉ đổi meta schema 2→3, giữ upgrade v1→2. Personal Backup v3 thêm packs, v1/v2 normalize packs=[]; schema Study Pack vẫn độc lập v1. Canonicalization dùng thứ tự ID và tag để so sánh nội dung ổn định; trường order điều khiển trình bày. Nhập pack mới hoặc bỏ qua bản trùng hoàn toàn, chặn cùng ID khác nội dung và va chạm child ID; không có merge từng thẻ vào pack đã tồn tại.
+
+Ảnh HTTPS chỉ lưu URL/alt/caption/essential. React render chữ trực tiếp, không HTML renderer. img dùng anonymous CORS/no-referrer, không preload trong editor/import/mặt sau; tải lỗi giữ fallback. CSP chỉ mở img-src https:, script-src giữ self. Không fetch schema/$ref, không media backend/Cache API. Prompt AI là Markdown tĩnh version cùng schema; không runtime API. FSRS sau này phải dùng bảng trạng thái riêng tham chiếu card ID/revision, không thêm lịch ôn vào content model.
 
 ## Dependency và privacy
 
-Runtime persistence giữ Dexie 4.4.6, không dependency con; PDF thêm pdfjs-dist 6.3.289. fake-indexeddb 6.2.5 chỉ cho integration tests Node; browser tests dùng IndexedDB thật. Schema v2 dùng validator runtime rõ ràng nên không thêm Ajv. Version trực tiếp pin exact. Optional dependency @napi-rs/canvas của PDF.js phục vụ Node, không được import/đóng gói trong browser và không dùng để trích xuất.
+M3a không thêm dependency. Runtime persistence giữ Dexie 4.4.6, PDF dùng pdfjs-dist 6.3.289. fake-indexeddb 6.2.5 chỉ cho integration tests Node; browser tests dùng IndexedDB thật. Các schema dùng validator runtime cục bộ với exact keys nên không thêm Ajv. Version trực tiếp pin exact. Optional dependency @napi-rs/canvas của PDF.js phục vụ Node, không được import/đóng gói trong browser và không dùng để trích xuất.
 
 Nội dung render như text; original giữ nguyên Unicode/dấu gạch. CSP production giới hạn script/assets nội bộ. Backup qua Blob URL; restore đọc File tại máy. Không upload/fetch user text, analytics, telemetry, remote DB hoặc API key. IndexedDB theo origin, không sync giữa browser/máy. Backup JSON không mã hóa. Không service worker hoặc offline app-shell guarantee.
 

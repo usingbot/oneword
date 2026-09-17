@@ -1,8 +1,8 @@
-# Hợp đồng dữ liệu M2
+# Hợp đồng dữ liệu M3a
 
 ## Database
 
-Tên: oneword-reader. Schema application/Dexie 2; native IndexedDB version 20 do Dexie biểu diễn version theo bội số 10. Giữ bốn stores và keys của M1b.
+Tên: oneword-reader. Schema application/Dexie 3; native IndexedDB version 30 do Dexie biểu diễn version theo bội số 10. Giữ bốn stores/keys của M1b/M2 và thêm packs.
 
 | Store / key | Nội dung |
 | --- | --- |
@@ -10,8 +10,17 @@ Tên: oneword-reader. Schema application/Dexie 2; native IndexedDB version 20 do
 | positions / documentId | Vị trí mới nhất của từng tài liệu |
 | settings / id=reader | Preferences hiện tại |
 | meta / id=library | schemaVersion, generation, activeDocumentId, draft |
+| packs / id | StudyPack v1 chứa decks/cards, chỉ nội dung |
 
-Revision nhúng trong aggregate document để ghi nguyên lịch sử undo cùng con trỏ. Original lặp trong revision 0 có chủ đích: nguồn bất biến và mốc undo của cùng mô hình. Không lưu mảng chunk, search index, media hoặc dữ liệu học.
+Revision nhúng trong aggregate document để ghi nguyên lịch sử undo cùng con trỏ. Original lặp trong revision 0 có chủ đích: nguồn bất biến và mốc undo của cùng mô hình. Không lưu mảng chunk, search index, media binary hoặc lịch sử/lịch ôn.
+
+## Study Pack v1
+
+Hợp đồng chuẩn, ví dụ đầy đủ và giới hạn ở [STUDY-PACK-SCHEMA.md](STUDY-PACK-SCHEMA.md); runtime validator ở src/application/study-pack.ts. Pack có type/schemaVersion/id/title/description/timestamps, optional author/source, mảng decks/cards. Deck trỏ packId; card trỏ deckId, có front/back {text,image?}, order/revision, optional tags/source. Image chỉ HTTPS URL/alt/caption?/essential?. IDs ổn định, không dựa vị trí mảng; unique xuyên mọi pack/deck/card trong thư viện, tách namespace khỏi ID tài liệu reader.
+
+Giới hạn 8 MiB/pack, 100 decks/5.000 cards mỗi pack; 100 packs/10.000 cards toàn thư viện. Text tối đa 10.000 ký tự/mặt, URL 2.048. Exact keys và quan hệ được kiểm trước ghi. Không HTML renderer, base64/data URL, schema từ xa hoặc scheduling fields. Export Study Pack v1 chỉ content; Personal Backup v3 là đường riêng chứa cả content và user state.
+
+Editor giữ card ID khi sửa/chuyển deck, tăng revision mỗi Save; xóa thẻ/pack có xác nhận. Không có history/undo thẻ trong M3a. Mỗi save/import/delete ghi atomic cùng generation chung của reader. Toàn bộ pack là aggregate; không có record thẻ mồ côi. Runtime freeze nội dung đã validate. Nội dung sửa thủ công được ghi có chủ đích; import không tự ghi đè.
 
 ## Document / revision
 
@@ -43,15 +52,15 @@ Preferences: reader như trên, glow, progress, fontSize. Defaults: words/1 từ
 
 activeDocumentId: UUID hoặc null. draft: null hoặc {documentId: UUID|null, text}, phải khớp tài liệu đang mở hoặc văn bản mới. Đổi tài liệu khi dirty yêu cầu apply/undo; mở TXT khi dirty có xác nhận bỏ draft. Tài liệu đã áp dụng trước vẫn giữ trong thư viện.
 
-## Personal Backup v2 (đọc được v1)
+## Personal Backup v3 (đọc được v1/v2)
 
 Envelope có đúng bốn trường:
 - type: oneword-personal-backup
-- schemaVersion: 2
+- schemaVersion: 3
 - exportedAt: ISO UTC, ví dụ 2026-09-16T00:00:00.000Z
-- data: {documents, positions, preferences, activeDocumentId, draft}
+- data: {documents, positions, preferences, activeDocumentId, draft, packs}
 
-Các record trong data dùng contract ở trên. Backup chứa toàn bộ dữ liệu cá nhân M2, cả memory chưa lưu khi xuất được. M1b v1 chỉ paste/txt được validate và nâng envelope thành v2 trong memory, giữ nguyên IDs/revisions/draft/settings. v1 có source=pdf bị reject; future version >2 bị reject. M1b cũ không nhận backup v2. Không mang generation nội bộ DB sang máy khác. Xuất tại client, không request server; JSON không mã hóa.
+Các record trong data dùng contract ở trên. Backup chứa reader state và nội dung packs đã lưu; chưa chứa form thẻ đang sửa. Reader memory/draft chưa checkpoint vẫn được xuất khi hợp lệ. v1/v2 dùng shape data cũ không có packs; normalize packs=[] và envelope v3, giữ IDs/revisions/draft/settings. v1 chỉ paste/txt, có PDF bị reject; v2 cho PDF. Future version >3 bị reject. App cũ không nhận backup v3. Không mang generation nội bộ DB sang máy khác. Xuất tại client, không request server; JSON không mã hóa.
 
 Validator runtime kiểm exact keys, types/ranges, UUID trùng, liên kết document/revision/position/draft, original-revision0 và timestamps. Kiểm 32 MiB trước đọc file/parse, depth tối đa 12 trước JSON.parse (ngoặc trong string không tính). Reject sai type, future version, malformed/large JSON, unknown fields. Không eval, remote schema hoặc $ref.
 
@@ -63,11 +72,12 @@ Select → parse/validate → merge preview đếm mới/trùng → confirm → 
 - Cùng ID, toàn bộ document record giống nhau: no-op document, giữ position local.
 - Cùng ID khác bất kỳ trường/revision/version: chặn toàn bộ restore. Revision ID trùng giữa documents cũng bị reject.
 - Thư viện có dữ liệu: giữ preferences, active document và draft local; thêm tài liệu mới để chọn mở.
-- Không có documents và không có draft: nhận preferences/active/draft của backup.
+- Pack mới thêm; pack trùng toàn bộ canonical content/metadata bỏ qua; cùng ID khác nội dung hoặc child ID trùng pack khác chặn toàn bộ restore, kể cả phần reader.
+- Không có documents, packs và draft: nhận preferences/active/draft của backup.
 - Không delete/replace/silent overwrite. Chưa có import-as-copy hoặc chọn bản thắng cho conflict. Không có bước phá hủy đòi backup trước xóa; nút export luôn sẵn.
 
 ## Migration / failure
 
-M1a không có DB. M2 giữ khai báo v1 và thêm v2; upgrade transaction chỉ đổi meta.schemaVersion 1→2, không rewrite documents, positions, settings, draft hoặc generation. Meta version không hợp lệ abort và rollback upgrade. DB rỗng chưa có meta được giữ rỗng. Native version phải là 20 ở mỗi read/write; kho tương lai bị chặn, không xóa. M1b cũ sẽ chặn native20; tab cũ phải đóng connection khi versionchange trước khi nâng cấp. Không hỗ trợ hạ schema. Có test migration giữ dữ liệu và rollback.
+M1a không có DB. M3a giữ khai báo/upgrade v1→v2, thêm v3 và store packs. Upgrade 1→2→3 chỉ đổi meta.schemaVersion; documents/positions/settings/draft/generation giữ nguyên, packs mới rỗng. Meta version không hợp lệ abort/rollback. DB rỗng chưa có meta giữ rỗng. Native version phải là 30 ở mỗi read/write; kho tương lai bị chặn, không xóa. App M1b/M2 cũ chặn native30; tab cũ phải đóng connection khi versionchange trước nâng cấp. Không hỗ trợ hạ schema. Unit/integration kiểm M1b/M2 migration và rollback; browser kiểm native20→30 giữ PDF, vị trí và restore backup3 cả reader/packs.
 
 Read failure không ghi đè kho chưa đọc. Save failure giữ memory, báo chưa lưu; retry vẫn kiểm generation. Browser có thể xóa IndexedDB, quota/lifecycle không bảo đảm durability tuyệt đối. Dữ liệu theo origin: dev/preview khác port là kho khác; backup dùng chuyển thủ công, không phải sync hay Study Pack.
