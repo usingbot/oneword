@@ -1,8 +1,8 @@
 # OneWord
 
-Trình đọc TXT/PDF/dán văn bản theo nhịp RSVP. Chặng hiện tại: **M3a**, thêm Study Pack và biên tập flashcard tại máy; lưu thư viện đọc/học bằng IndexedDB, trao đổi nội dung bằng Study Pack JSON và sao lưu toàn bộ bằng Personal Backup.
+Trình đọc TXT/PDF/dán văn bản theo nhịp RSVP. Chặng hiện tại: **M3b**, thêm ôn Anki-style bằng FSRS local; lưu thư viện đọc/học bằng IndexedDB, trao đổi nội dung bằng Study Pack JSON và sao lưu toàn bộ bằng Personal Backup.
 
-M1a, M1b và M2 đã được chấp nhận tại `f57c872`, `3078e62` và `da305cc`. Kiểm chứng và giới hạn trong [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md).
+M1a, M1b, M2 và M3a đã được chấp nhận tại `f57c872`, `3078e62`, `da305cc` và `c0283f7`. Kiểm chứng và giới hạn trong [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md).
 
 ## Chạy local
 
@@ -44,7 +44,7 @@ PDF.js **6.3.289** đọc File bằng worker local, theo từng trang/stream ch�
 
 Giữ raw text và ranh giới/cảnh báo từng trang bất biến; bản làm việc chỉ gom tab/space/NBSP, chuẩn hóa CRLF, bỏ khoảng trắng đầu/cuối dòng và gom dòng trống. Giữ Unicode, xuống dòng đơn và mọi dấu gạch nối, kể cả `informa-\ntion`; người dùng có thể tự sửa. Có nút trở về bản chuẩn hóa hoặc dùng raw.
 
-Lưu chữ gốc, revisions, filename, số trang, thời điểm/phiên bản extractor và cảnh báo; **không lưu PDF binary hoặc ảnh trang**. Personal Backup hiện là v3, đọc được v1/v2; DB v1/v2 nâng lên v3 bằng transaction, giữ dữ liệu cũ. App cũ không đọc được kho v3.
+Lưu chữ gốc, revisions, filename, số trang, thời điểm/phiên bản extractor và cảnh báo; **không lưu PDF binary hoặc ảnh trang**. Personal Backup hiện là v4, đọc được v1/v2/v3; DB cũ nâng lên v4 bằng transaction, giữ dữ liệu cũ. App cũ không đọc được kho v4.
 
 Giới hạn: 50 MiB/tệp, 500 trang, 2 MiB chữ và 120 giây cho một lần xử lý PDF.js. PDF ảnh/scan hoặc trắng hoàn toàn báo không có chữ, không tạo tài liệu rỗng; mixed PDF ghi rõ trang thiếu/ít chữ. Chưa OCR và chưa nhập mật khẩu: PDF cần mật khẩu bị từ chối rõ ràng. File hỏng/không có trang/quá giới hạn bị chặn. Hai cột, bảng, footnote, font mapping sai hoặc công thức có thể trích xuất sai; heuristic chỉ cảnh báo, không bảo đảm đúng thứ tự. Không sửa thứ tự tự động.
 
@@ -52,13 +52,23 @@ Giới hạn: 50 MiB/tệp, 500 trang, 2 MiB chữ và 120 giây cho một lần
 
 Chọn **Học / Flashcards** → **Tạo pack** → đặt tên/mô tả → tạo bộ thẻ → **Tạo thẻ**. Nhập chữ hai mặt, nhãn, nguồn và URL ảnh tùy chọn. **Sửa thẻ** giữ ID, tăng revision và có thể chuyển bộ thẻ; xóa thẻ/pack có xác nhận. Nội dung được lưu sau transaction thành công. Bản sửa đang nhập chưa lưu sẽ có cảnh báo khi rời khu vực học hoặc đóng trang.
 
-Khi học chỉ hiện mặt trước; **Xem đáp án** mở mặt sau, **Thẻ tiếp theo** che đáp án lại. Đây là xem nội dung tự học, chưa có lịch ôn, đánh giá hay thống kê nhớ.
+Khi xem nội dung chỉ hiện mặt trước; **Xem đáp án** mở mặt sau, **Thẻ tiếp theo** che đáp án lại. Chế độ này không ghi lịch ôn; dùng **Ôn theo lịch** để đánh giá recall và cập nhật FSRS.
 
-**Nhập Study Pack** nhận tệp JSON hoặc nội dung dán → kiểm tra → xem trước và xung đột → xác nhận. Không ghi trước xác nhận. Pack trùng hoàn toàn được bỏ qua; cùng ID khác nội dung/metadata hoặc tái dùng ID con ở pack khác chặn toàn bộ. **Xuất Study Pack** chỉ xuất nội dung của pack đang chọn, giữ ID và quan hệ; không chứa vị trí đọc, thiết lập hoặc trạng thái cá nhân. **Personal Backup v3** chứa cả thư viện đọc và packs, dùng luồng sao lưu/khôi phục riêng.
+**Nhập Study Pack** nhận tệp JSON hoặc nội dung dán → kiểm tra → xem trước và xung đột → xác nhận. Không ghi trước xác nhận. Pack trùng hoàn toàn được bỏ qua; cùng ID khác nội dung/metadata hoặc tái dùng ID con ở pack khác chặn toàn bộ. **Xuất Study Pack** chỉ xuất nội dung của pack đang chọn, giữ ID và quan hệ; không chứa vị trí đọc, thiết lập hoặc trạng thái cá nhân. **Personal Backup v4** chứa thư viện đọc, packs và lịch ôn cá nhân, dùng luồng sao lưu/khôi phục riêng.
 
 Ảnh chỉ là tham chiếu HTTPS, có alt và tùy chọn caption/essential. Mỗi ảnh cần bấm **Tải ảnh này**; không tải trước trong editor/import hoặc mặt sau đang che. Yêu cầu ảnh không gửi cookie cross-origin/referrer, nhưng máy chủ vẫn nhận IP và có thể nhận Origin; cần máy chủ cho phép CORS. Khi lỗi, giữ mô tả/chú thích và nhắc bỏ qua nếu ảnh thiết yếu. Không upload, proxy hoặc lưu binary ảnh vào kho ứng dụng; cache HTTP bình thường của trình duyệt vẫn có thể hoạt động.
 
 Xem [schema Study Pack v1 và giới hạn](docs/STUDY-PACK-SCHEMA.md). Có [prompt tĩnh v1](docs/STUDY-PACK-PROMPT-v1.md) để tự copy sang AI bên ngoài cùng tài liệu bạn chọn; OneWord không gọi API AI hoặc tự gửi tài liệu.
+
+## Ôn theo lịch
+
+Trong **Học / Flashcards**, chọn deck → **Ôn theo lịch**. Tự nhớ trước, **Mở đáp án**, rồi chọn **Quên / Khó / Nhớ / Dễ**. Quên dành cho quên/sai; Khó chỉ dùng khi nhớ đúng nhưng rất khó. Mặt trước và mặt sau xếp dọc sau reveal; không có rating trước reveal. Space mở đáp án, phím1–4 đánh giá khi focus ở vùng ôn ngoài controls; giữ phím không tạo lượt lặp.
+
+Thẻ đến hạn trước thẻ mới. Mặc định 20 thẻ mới/ngày toàn thư viện, chỉnh 0..200 trong **Thiết lập ôn**; không giới hạn due cards. Ngày học bắt đầu 00:00 theo timezone được lưu lúc mở kho lần đầu, không đổi theo timezone thiết bị về sau. FSRS **ts-fsrs 5.4.2** chạy local với retention mục tiêu0,90 cố định; đây là tham số scheduler, không phải điểm trí nhớ.
+
+**Hoàn tác lượt ôn** phục hồi lịch và allowance khi còn an toàn, giữ dấu lịch sử. **Bỏ qua trong phiên** không ghi rating, dùng khi thiếu ảnh thiết yếu. Thẻ đang learning có thể chưa đến hạn; bấm **Cập nhật hàng đợi** sau thời gian chờ. Sửa/chuyển deck giữ schedule; xóa card bỏ schedule live nhưng giữ audit và lượt mới đã dùng. Tab stale không được ghi đè: ứng dụng tải lại lịch và yêu cầu recall lại.
+
+Personal Backup hiện là **v4**, đọc v1/v2/v3, giữ cả lịch ôn/events/undo/settings; DB nâng lên **v4/native40**. Study Pack vẫn **v1, chỉ nội dung**, không mang tiến độ cá nhân. Cần app đã tải để ôn offline; chưa có PWA cho cold start. Xem [chính sách và schema lịch ôn](docs/FLASHCARD-SCHEDULING.md) trước khi trao đổi backup giữa máy; các history khác nhau bị chặn, không tự merge.
 
 ## Kiểm tra
 
@@ -81,7 +91,7 @@ Script dùng Node Linux portable trong `.tools` nếu có, nếu không dùng No
 
 ## Phạm vi
 
-M3a chưa có OCR, FSRS, hàng đợi/lịch sử ôn, quiz, PWA, tài khoản, backend, AI API, telemetry hoặc cloud sync. Nội dung đọc và Study Pack không upload; chỉ ảnh HTTPS được yêu cầu khi người dùng chọn tải. Không có font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ.
+M3b chưa có OCR, quiz, PWA, tài khoản, backend, AI API, telemetry, cloud sync, AnkiWeb, .apkg, optimizer hoặc dashboard nâng cao. Nội dung đọc, lịch ôn và Study Pack không upload; chỉ ảnh HTTPS được yêu cầu khi người dùng chọn tải. Không có font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ.
 
 Giấy phép dự án chưa được chọn. Không có LICENSE; MIT chưa được duyệt, AGPL-3.0 đang được cân nhắc. Không commit/push/deploy tự động.
 

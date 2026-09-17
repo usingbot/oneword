@@ -1,4 +1,40 @@
-# Môi trường kiểm thử M1a / M1b / M2 / M3a
+# Môi trường kiểm thử M1a / M1b / M2 / M3a / M3b
+
+## M3b — kiểm chứng 17/09/2026
+
+Baseline trước sửa: `c0283f7`, branch main, working tree sạch, root D:/oneword. Chỉ triển khai M3b. Node Windows22.17.0/npm11.15.0, Ubuntu WSL Node24.21.0/npm11.19.0, Chromium/WSLg như các chặng trước. Sandbox giữ nguyên. Đã dùng project skills FSRS/local-first/quality; không Product Design hoặc subagent.
+
+Dependency duy nhất mới: **ts-fsrs5.4.2**, đã chạy `npm view ts-fsrs version engines dependencies license repository --json`, đối chiếu release/API chính thức và README/dist/index.d.ts thực, rồi `npm install --save-exact ts-fsrs@5.4.2 --ignore-scripts`. Không dependency runtime con, Anki package hoặc optimizer. Notice upstream được giữ nguyên ở public/notices/ts-fsrs-5.4.2.txt và dist/notices tương ứng; không chọn license dự án.
+
+| Lệnh thực chạy | Kết quả cuối |
+| --- | --- |
+| `npm run typecheck` | PASS, exit0 |
+| `npm run lint` | PASS, exit0 |
+| `npm test` | PASS, **135 tests / 10 files**, exit0 |
+| `npm run build` | PASS, exit0 |
+| `npm audit` | **0 vulnerabilities**, exit0 |
+| `git diff --check` | PASS, exit0 |
+| `wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh` | PASS, **51 tests, 0 fail, 0 skip, 0 retry**, exit0, **4.4 phút** |
+
+25 unit/integration mới cộng110 baseline; 8 browser review mới cộng43 baseline. Native hidden cuối40.2s. Lượt riêng review đạt7/7, sau đó thêm timezone/rollover và chạy full51. Một lượt riêng trước đó có1 fail do test dùng thông báo lỗi mới nhưng dist cũ; rebuild rồi kiểm lại rollback/retry thật đạt, không đổi assertion để bỏ lỗi. Các test version/migration baseline được cập nhật schema expected4/native40 và legacy fixtures loại review field; không bỏ kiểm preserve dữ liệu. Sau full suite chỉ bổ sung notice tĩnh, rebuild và so hash với upstream; runtime bundle không đổi.
+
+### Bằng chứng
+
+- application/review.test.ts: frozen clock; bốn rating của card mới và overdue/subsequent đều đối chiếu card trả về từ ts-fsrs thật; lapse/relearning, serialization steps, clock lùi; deterministic due-before-new và new limit0 không chặn overdue. Không tính lại công thức FSRS trong test. Backup1/2/3 fixtures có reader original/revisions/draft, v3 có pack/deck/card, migration giữ nguyên và thêm review rỗng.
+- storage/review-store.test.ts: adapter thật/fake-indexeddb. Duplicate event ID và hai concurrent connections tạo đúng1 event; ID cùng payload retry no-op, payload khác reject; stale revision/ABA bị chặn. Inject final review put failure không thay snapshot; undo new/subsequent khôi phục exact FSRS state, counter derive được phục hồi và event bất biến. Chặn unsafe undo sau rating mới hoặc content edit. Limit/due exemption/rollover, edit/move/delete, live review không bị reader checkpoint ghi đè. Backup4 restore exact, conflict và rollback xuyên reader/content/review; M3a DB30→40 migration giữ pack/generation, meta sai rollback về30. Quota failure được inject, không làm đầy đĩa thật.
+- `artifacts/m3b-review-privacy.json`: browser import → front (rating/back chưa có) → reveal → Good offline → next → reload giữ schedule/event/revision. `unexpected: []`, `errors: []`; chỉ GET cùng origin cho app assets, không request dữ liệu ôn. Đây là offline sau khi app đã tải, không PWA/cold start offline.
+- `artifacts/m3b-double-submit.json`: click hai lần đồng bộ tạo đúng1 ReviewEvent/schedule revision1. Keyboard repeat không ghi lượt; phím trong form không đánh giá. UI lock được kiểm cùng transaction authority ở unit/concurrent tests.
+- `artifacts/m3b-two-tabs.json`: TabB ghi thành công, TabA đang reveal lịch cũ bị reject; state/history sau stale attempt bằng snapshot TabB, UI giải thích và chuyển về mặt trước của queue mới. Page/console errors của cả hai tab rỗng.
+- `artifacts/m3b-undo.json`: rate→undo→reload. FSRS state trước là null được phục hồi; guard revision tăng2, event giữ nguyên, có undo reference, allowance trở lại20. Unit còn kiểm exact snapshot trước một subsequent review.
+- `artifacts/m3b-backup-restore.json`: limit7 + rating → export Personal Backup4 → clear IndexedDB test → restore; schedules/history/settings khớp chính xác. Export Study Pack sau đó bằng content fixture ban đầu, không scheduler fields.
+- `artifacts/m3b-timezone.json`: clock16:59UTC, timezone Việt Nam, dùng quota1; đổi device timezoneUTC và clock17:00UTC, timezone đã lưu không đổi, ngày học rollover cho thẻ mới tiếp theo. Unit thêm DST NewYork. Không dựa giờ máy thật cho phép thử này.
+- Ca real IndexedDB failure inject IDBObjectStore.put của review: không event/schedule dở, nút thử lại dùng cùng operation identity và chỉ ghi1 lượt. Narrow390px kiểm keyboard/no overflow/daily limit persisted. Đã mở kiểm desktop `artifacts/m3b-review-reveal.png` và `artifacts/m3b-review-mobile.png`; back xếp dọc sau front, ratings chỉ sau reveal. Mobile emulation không chứng minh điện thoại thật hoặc screen reader.
+
+Build runtime: entryJS **426.20kB / gzip134.13kB**, CSS **16.57kB / gzip4.52kB**. PDF lazy429.74kB/gzip128.69kB và worker1265.41kB giữ nguyên. Log `artifacts/m3b-build.log`. Không benchmark RAM/latency 20.000 events; review aggregate validation/serialization vẫn ở main thread. Không tuyên bố hiệu quả ghi nhớ từ các con số này.
+
+Giới hạn: retention0.90/steps/profile cố định, không interval preview, không tự refresh khi chờ due; skip/queue selection trong memory. Undo chỉ khi latest review còn khớp snapshot, không undo stack tùy ý hoặc ghi đè thao tác mới. History khác nhau khi restore chặn toàn bộ; không merge/compact lịch sử. Xóa thẻ giữ audit metadata, bỏ live schedule. App cũ không mở DB40. Timezone cố định nhưng không có giờ server chống chỉnh clock về tương lai. Chưa real mobile/Firefox/Safari/screen reader hoặc stress sát32MiB/20.000 events. Không quiz/PWA/backend/accounts/cloud/optimizer/AI/deploy.
+
+Report: playwright-report/index.html; JSON/screenshots/log dưới artifacts và test-results đều Git-ignored, chỉ dữ liệu tổng hợp. Không stage/commit/push/deploy; AGENTS và project skills giữ nguyên.
 
 ## M3a — kiểm chứng 17/09/2026
 

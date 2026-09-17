@@ -1,3 +1,6 @@
+import { emptyReview, pruneReview } from '../application/review'
+import type { ReviewRecord } from './review-store'
+import { mergeReview } from '../application/review-validation'
 import Dexie, { type Table } from 'dexie'
 import { type TextDocument } from '../application/document'
 import { emptyLibrary, type LibraryData, type Preferences, type ReaderStorage, type ReadingPosition } from '../application/library'
@@ -5,7 +8,7 @@ import { exportBackup, validateLibrary } from '../application/backup'
 import type { StudyPack } from '../application/study-pack'
 
 export const DATABASE_NAME = 'oneword-reader'
-interface Meta { id: string; schemaVersion: 3; generation: number; activeDocumentId: string | null; draft: LibraryData['draft'] }
+interface Meta { id: string; schemaVersion: 4; generation: number; activeDocumentId: string | null; draft: LibraryData['draft'] }
 export class IndexedDbStorage implements ReaderStorage {
   readonly db: Dexie
   private documents: Table<TextDocument, string>
@@ -33,35 +36,45 @@ export class IndexedDbStorage implements ReaderStorage {
         await tx.table('meta').put({ ...meta, schemaVersion: 3 })
       }
     })
-    // Reject future compatible schemas too. Dexie v3 is native IndexedDB v30.
+    this.db.version(4).stores({ documents: 'id', positions: 'documentId', settings: 'id', meta: 'id', packs: 'id', review: 'id' }).upgrade(async tx => {
+      const meta = await tx.table('meta').get('library')
+      if (meta) {
+        if (meta.schemaVersion !== 3) throw new Error('Unsupported database schema')
+        await tx.table('meta').put({ ...meta, schemaVersion: 4 })
+      }
+      await tx.table('review').put({ id: 'review', generation: 0, data: emptyReview() })
+    })
+    // Reject future compatible schemas too. Dexie v4 is native IndexedDB v40.
     this.documents = this.db.table('documents'); this.positions = this.db.table('positions'); this.settings = this.db.table('settings'); this.meta = this.db.table('meta')
     this.packs = this.db.table('packs')
     this.db.on('blocked', () => this.db.close())
   }
   async read() {
-    const result = await this.db.transaction('r', this.db.tables, async () => {
-      if (this.db.backendDB().version !== 30) throw new Error('Unsupported database version; no writes allowed')
+    const result = await this.db.transaction('rw', this.db.tables, async () => {
+      if (this.db.backendDB().version !== 40) throw new Error('Unsupported database version; no writes allowed')
       const meta = await this.meta.get('library'), documents = await this.documents.toArray(), prefs = await this.settings.get('reader')
-      if (meta && meta.schemaVersion !== 3) throw new Error('Unsupported database schema')
+      if (meta && meta.schemaVersion !== 4) throw new Error('Unsupported database schema')
       if (meta && (!Number.isSafeInteger(meta.generation) || meta.generation < 0)) throw new Error('Invalid generation')
       const packs = await this.packs.toArray()
       if (!meta && (documents.length || prefs || packs.length)) throw new Error('Incomplete database')
-      const data = validateLibrary({ packs, documents, positions: await this.positions.toArray(), preferences: prefs ? { reader: prefs.reader, glow: prefs.glow, progress: prefs.progress, fontSize: prefs.fontSize } : emptyLibrary().preferences, activeDocumentId: meta?.activeDocumentId ?? null, draft: meta?.draft ?? null })
+      let review = await this.db.table<ReviewRecord>('review').get('review')
+      if (!review) { review = { id: 'review', generation: 0, data: emptyReview() }; await this.db.table('review').put(review) }
+      const data = validateLibrary({ review: review.data, packs, documents, positions: await this.positions.toArray(), preferences: prefs ? { reader: prefs.reader, glow: prefs.glow, progress: prefs.progress, fontSize: prefs.fontSize } : emptyLibrary().preferences, activeDocumentId: meta?.activeDocumentId ?? null, draft: meta?.draft ?? null })
       return { data, generation: meta?.generation ?? 0 }
     })
     this.savedDocuments = new Map(result.data.documents.map(d => [d.id, d]))
     this.savedPacks = new Map(result.data.packs.map(p => [p.id, p]))
     return result
   }
-  async save(data: LibraryData, expectedGeneration: number) {
+  async save(data: LibraryData, expectedGeneration: number, expectedReviewGeneration?: number) {
     // Validation happens before the transaction. No parsing or external I/O inside it.
     exportBackup(data)
     const changed = data.documents.filter(d => this.savedDocuments.get(d.id) !== d)
     const generation = await this.db.transaction('rw', this.db.tables, async () => {
-      if (this.db.backendDB().version !== 30) throw new Error('Unsupported database version; no writes allowed')
+      if (this.db.backendDB().version !== 40) throw new Error('Unsupported database version; no writes allowed')
       const meta = await this.meta.get('library')
       if ((meta?.generation ?? 0) !== expectedGeneration) throw new Error('Concurrent change; reload after exporting memory backup')
-      if (meta && meta.schemaVersion !== 3) throw new Error('Unsupported database schema')
+      if (meta && meta.schemaVersion !== 4) throw new Error('Unsupported database schema')
       for (const doc of changed) {
         const old = await this.documents.get(doc.id)
         if (old) {
@@ -74,14 +87,19 @@ export class IndexedDbStorage implements ReaderStorage {
         }
         await this.documents.put(doc)
       }
-      // Only small position/settings records are written at reading checkpoints.
+      const reviewTable = this.db.table<ReviewRecord>('review'), review = await reviewTable.get('review')
+      if (expectedReviewGeneration !== undefined && expectedReviewGeneration !== (review?.generation ?? 0)) throw new Error('Concurrent review change; restore aborted')
+      const nextReview = expectedReviewGeneration !== undefined ? mergeReview(review?.data ?? emptyReview(), data.review, data.packs) : pruneReview(review?.data ?? emptyReview(), data.packs)
+      exportBackup({ ...data, review: nextReview })
+      if (!review || JSON.stringify(nextReview) !== JSON.stringify(review.data)) await reviewTable.put({ id: 'review', generation: (review?.generation ?? 0) + 1, data: nextReview })
+      // Reader checkpoints preserve the authoritative live review state.
       const packIds = new Set(data.packs.map(p => p.id))
       await this.packs.bulkDelete([...this.savedPacks.keys()].filter(id => !packIds.has(id)))
       await this.packs.bulkPut(data.packs.filter(p => this.savedPacks.get(p.id) !== p))
       await this.positions.bulkPut([...data.positions])
       await this.settings.put({ id: 'reader', ...data.preferences })
       const next = expectedGeneration + 1
-      await this.meta.put({ id: 'library', schemaVersion: 3, generation: next, activeDocumentId: data.activeDocumentId, draft: data.draft })
+      await this.meta.put({ id: 'library', schemaVersion: 4, generation: next, activeDocumentId: data.activeDocumentId, draft: data.draft })
       return next
     })
     this.savedDocuments = new Map(data.documents.map(d => [d.id, d]))

@@ -79,8 +79,8 @@ Một file chứa một pack. Chọn file/dán JSON → kiểm byte/depth → pa
 
 Export chỉ chiếu nội dung qua validator, không lịch sử review, FSRS, position, preferences, session, generation hoặc draft reader. Import/export giữ IDs, relationships, timestamps/revisions và image metadata. JSON hợp lệ không chứng minh tri thức đúng: người dùng cần kiểm nội dung.
 
-## Personal Backup và FSRS về sau
+## Personal Backup và FSRS
 
-Personal Backup v3 chứa data.packs cùng reader documents/positions/preferences/draft. Restore v1/v2 thêm packs=[]; giữ nguyên dữ liệu reader. Study Pack không đọc Personal Backup và không dùng làm đường khôi phục trạng thái cá nhân. Backup merge áp dụng cùng quy tắc conflict cho packs và atomic xuyên dữ liệu reader/content.
+Personal Backup v4 chứa data.packs cùng reader documents/positions/preferences/draft và data.review cá nhân. Restore v1/v2 thêm packs=[]; v1/v2/v3 thêm review rỗng, giữ dữ liệu cũ. Study Pack không đọc Personal Backup và không dùng làm đường khôi phục trạng thái cá nhân. Backup merge áp dụng cùng quy tắc conflict cho packs và atomic xuyên reader/content/review.
 
-FSRS/review sau này phải có store/model riêng, tham chiếu cardId và content revision. Không thêm due/stability/difficulty/rating/review history vào Card v1. Quiz/chọn đáp án chưa có trong schema v1; thay đổi schema cần version và converter có test. M3a không có scheduler, review log, queue spaced repetition, Again/Hard/Good/Easy hoặc tự chấm quiz.
+M3b triển khai FSRS/review trong store/model riêng, tham chiếu cardId và content revision; xem [FLASHCARD-SCHEDULING.md](FLASHCARD-SCHEDULING.md). Không thêm due/stability/difficulty/rating/review history vào Card v1. Quiz/chọn đáp án chưa có trong schema v1; thay đổi schema cần version và converter có test. Study Pack v1 không thay đổi cấu trúc vì scheduling.

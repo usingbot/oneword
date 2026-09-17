@@ -94,14 +94,14 @@ describe('Study Pack content contract', () => {
     const pack = studyFixture(), doc = createDocument('reader original', 'reader')
     const data = { ...emptyLibrary(), documents: [doc], packs: [pack], activeDocumentId: doc.id }
     const parsed = parseBackup(exportBackup(data))
-    expect(parsed.schemaVersion).toBe(3); expect(parsed.data).toEqual(data)
+    expect(parsed.schemaVersion).toBe(4); expect(parsed.data).toEqual(data)
     expect(mergeBackup(emptyLibrary(), parsed.data).data).toEqual(data)
     const conflict = { ...data, packs: [validateStudyPack({ ...pack, title: 'changed' })] }
     expect(() => mergeBackup(data, conflict)).toThrow('khác nội dung')
   })
   it.each([1, 2])('migrates Personal Backup v%s by adding empty content, leaving reader state intact', version => {
     const doc = createDocument('reader', 'old.txt', 'txt'), data = { ...emptyLibrary(), documents: [doc], activeDocumentId: doc.id }
-    const old = JSON.parse(exportBackup(data)); old.schemaVersion = version; delete old.data.packs
-    expect(parseBackup(JSON.stringify(old))).toMatchObject({ schemaVersion: 3, data })
+    const old = JSON.parse(exportBackup(data)); old.schemaVersion = version; delete old.data.packs; delete old.data.review
+    expect(parseBackup(JSON.stringify(old))).toMatchObject({ schemaVersion: 4, data })
   })
 })

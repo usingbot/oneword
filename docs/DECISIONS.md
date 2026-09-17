@@ -1,5 +1,14 @@
 # Quyết định đã được người dùng duyệt
 
+## Phê duyệt M3b — 17/09/2026
+
+- Baseline main sạch c0283f7, M3a đã chấp nhận. Triển khai ôn Anki-style/FSRS local, ratings đúng nghĩa, queue/daily limit, multi-tab guard/idempotency/undo, backup/migration; không quiz/AI/backend/accounts/cloud/PWA/deploy/.apkg/AnkiWeb/stats/optimizer.
+- Đã xác minh và pin ts-fsrs5.4.2; chỉ dependency này, không phụ thuộc con. Adapter narrow, dùng next của thư viện thật; tests không tự viết lại toán FSRS.
+- Lựa chọn triển khai: profile retention0.90 cố định/fuzz tắt/short-term bật; learning1m,10m/relearning10m; 20 thẻ mới/ngày toàn thư viện, setting0..200, ngày00:00 timezone lưu ban đầu. Due cards không bị limit mới chặn.
+- DB4/native40, review aggregate riêng; generation review độc lập reader, per-schedule revision và operationID là authority. Event/undo append-only; daily counters được derive. Undo phục hồi FSRS snapshot nhưng tăng revision; unsafe undo bị chặn.
+- Content edits/move giữ progress; delete prune live schedule, giữ audit. Backup4 đọc1/2/3, xung đột personal history chặn toàn bộ. Study Pack1 không đổi. Chi tiết và giới hạn tại FLASHCARD-SCHEDULING.md.
+- Dừng sau M3b; không commit/push/deploy/LICENSE hoặc triển khai quiz.
+
 ## Phê duyệt M3a — 17/09/2026
 
 - M1a/M1b/M2 đã được chấp nhận; baseline main sạch `da305cc`. Lượt hiện tại chỉ triển khai content layer Study Pack và flashcard thủ công, persistence, preview study và import/export. Các mục M0–M2 bên dưới là lịch sử phê duyệt.

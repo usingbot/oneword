@@ -17,7 +17,8 @@
     "dexie": "4.4.6",
     "pdfjs-dist": "6.3.289",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "ts-fsrs": "5.4.2"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

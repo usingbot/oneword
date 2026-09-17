@@ -42,7 +42,7 @@ describe('personal backup contract', () => {
   it.each(['type', 'version', 'reference', 'duplicate', 'revision-reference', 'prototype', 'original', 'invalid-setting', 'timestamp'])('rejects %s without trusting TS types', kind => {
     const envelope = JSON.parse(exportBackup(fixture()))
     if (kind === 'type') envelope.type = 'study-pack'
-    if (kind === 'version') envelope.schemaVersion = 4
+    if (kind === 'version') envelope.schemaVersion = 5
     if (kind === 'reference') envelope.data.activeDocumentId = crypto.randomUUID()
     if (kind === 'duplicate') envelope.data.documents.push(envelope.data.documents[0])
     if (kind === 'revision-reference') envelope.data.positions[0].revisionId = crypto.randomUUID()

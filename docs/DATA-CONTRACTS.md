@@ -1,8 +1,18 @@
-# Hợp đồng dữ liệu M3a
+# Hợp đồng dữ liệu M3b
+
+## Thay đổi hiện tại từ M3a
+
+DB Dexie4/native40 thêm store review, key id=review: `{id,generation,data:{settings,schedules,events,undos}}`. Meta schemaVersion4; bốn stores reader và packs giữ keys/shape. Migration v3→v4 thêm review mặc định, giữ toàn bộ documents/positions/settings/draft/packs/generation. Schedule theo cardId, tách khỏi Study Packv1; event/undo immutable, có UTC instants và contentRevision. [Schema đầy đủ, giới hạn và invariants](FLASHCARD-SCHEDULING.md).
+
+Personal Backup hiện **v4**, data thêm `review`. Parse v1/v2 thêm packs=[] và review rỗng; parse v3 giữ packs và thêm review rỗng; phiên bản>4 bị chặn. Snapshot state cần cho ts-fsrs5.4.2 được giữ đủ để exact restore; không recompute schedule khi restore. Không mang review generation nội bộ kho sang máy khác. Personal review histories khác nhau chặn toàn bộ restore, không merge ngầm; adapter kiểm generation và conflict trong transaction.
+
+Xóa card/pack prune live schedules trong cùng transaction; events/undo còn như tham chiếu audit tới card đã xóa. Sửa/chuyển deck không xóa lịch. Limit mới được derive từ events chưa undo trong studyDay timezone cố định, nên atomic cùng sự kiện. Reader checkpoint chỉ ghi dữ liệu reader/content và giữ review authoritative đang có.
+
+Các mục sau mô tả hợp đồng reader/content tiếp tục được giữ. Study Pack schema vẫn1.
 
 ## Database
 
-Tên: oneword-reader. Schema application/Dexie 3; native IndexedDB version 30 do Dexie biểu diễn version theo bội số 10. Giữ bốn stores/keys của M1b/M2 và thêm packs.
+Tên: oneword-reader. Schema application/Dexie 4; native IndexedDB version 40 do Dexie biểu diễn version theo bội số 10. Giữ stores/keys reader/packs và thêm review.
 
 | Store / key | Nội dung |
 | --- | --- |
@@ -11,16 +21,17 @@ Tên: oneword-reader. Schema application/Dexie 3; native IndexedDB version 30 do
 | settings / id=reader | Preferences hiện tại |
 | meta / id=library | schemaVersion, generation, activeDocumentId, draft |
 | packs / id | StudyPack v1 chứa decks/cards, chỉ nội dung |
+| review / id=review | generation và aggregate settings/schedules/events/undos cá nhân |
 
-Revision nhúng trong aggregate document để ghi nguyên lịch sử undo cùng con trỏ. Original lặp trong revision 0 có chủ đích: nguồn bất biến và mốc undo của cùng mô hình. Không lưu mảng chunk, search index, media binary hoặc lịch sử/lịch ôn.
+Revision nhúng trong aggregate document để ghi nguyên lịch sử undo cùng con trỏ. Original lặp trong revision 0 có chủ đích: nguồn bất biến và mốc undo của cùng mô hình. Không lưu mảng chunk, search index hoặc media binary; lịch ôn cá nhân ở store review riêng.
 
 ## Study Pack v1
 
 Hợp đồng chuẩn, ví dụ đầy đủ và giới hạn ở [STUDY-PACK-SCHEMA.md](STUDY-PACK-SCHEMA.md); runtime validator ở src/application/study-pack.ts. Pack có type/schemaVersion/id/title/description/timestamps, optional author/source, mảng decks/cards. Deck trỏ packId; card trỏ deckId, có front/back {text,image?}, order/revision, optional tags/source. Image chỉ HTTPS URL/alt/caption?/essential?. IDs ổn định, không dựa vị trí mảng; unique xuyên mọi pack/deck/card trong thư viện, tách namespace khỏi ID tài liệu reader.
 
-Giới hạn 8 MiB/pack, 100 decks/5.000 cards mỗi pack; 100 packs/10.000 cards toàn thư viện. Text tối đa 10.000 ký tự/mặt, URL 2.048. Exact keys và quan hệ được kiểm trước ghi. Không HTML renderer, base64/data URL, schema từ xa hoặc scheduling fields. Export Study Pack v1 chỉ content; Personal Backup v3 là đường riêng chứa cả content và user state.
+Giới hạn 8 MiB/pack, 100 decks/5.000 cards mỗi pack; 100 packs/10.000 cards toàn thư viện. Text tối đa 10.000 ký tự/mặt, URL 2.048. Exact keys và quan hệ được kiểm trước ghi. Không HTML renderer, base64/data URL, schema từ xa hoặc scheduling fields trong Study Pack. Export Study Pack v1 chỉ content; Personal Backup v4 là đường riêng chứa cả content và user state.
 
-Editor giữ card ID khi sửa/chuyển deck, tăng revision mỗi Save; xóa thẻ/pack có xác nhận. Không có history/undo thẻ trong M3a. Mỗi save/import/delete ghi atomic cùng generation chung của reader. Toàn bộ pack là aggregate; không có record thẻ mồ côi. Runtime freeze nội dung đã validate. Nội dung sửa thủ công được ghi có chủ đích; import không tự ghi đè.
+Editor giữ card ID khi sửa/chuyển deck, tăng revision mỗi Save; xóa thẻ/pack có xác nhận. Chưa có history/undo biên tập nội dung; undo review là luồng riêng. Mỗi save/import/delete nội dung ghi atomic cùng generation chung của reader. Toàn bộ pack là aggregate; không có record thẻ mồ côi. Runtime freeze nội dung đã validate. Nội dung sửa thủ công được ghi có chủ đích; import không tự ghi đè.
 
 ## Document / revision
 
@@ -52,15 +63,15 @@ Preferences: reader như trên, glow, progress, fontSize. Defaults: words/1 từ
 
 activeDocumentId: UUID hoặc null. draft: null hoặc {documentId: UUID|null, text}, phải khớp tài liệu đang mở hoặc văn bản mới. Đổi tài liệu khi dirty yêu cầu apply/undo; mở TXT khi dirty có xác nhận bỏ draft. Tài liệu đã áp dụng trước vẫn giữ trong thư viện.
 
-## Personal Backup v3 (đọc được v1/v2)
+## Personal Backup v4 (đọc được v1/v2/v3)
 
 Envelope có đúng bốn trường:
 - type: oneword-personal-backup
-- schemaVersion: 3
+- schemaVersion: 4
 - exportedAt: ISO UTC, ví dụ 2026-09-16T00:00:00.000Z
-- data: {documents, positions, preferences, activeDocumentId, draft, packs}
+- data: {documents, positions, preferences, activeDocumentId, draft, packs, review}
 
-Các record trong data dùng contract ở trên. Backup chứa reader state và nội dung packs đã lưu; chưa chứa form thẻ đang sửa. Reader memory/draft chưa checkpoint vẫn được xuất khi hợp lệ. v1/v2 dùng shape data cũ không có packs; normalize packs=[] và envelope v3, giữ IDs/revisions/draft/settings. v1 chỉ paste/txt, có PDF bị reject; v2 cho PDF. Future version >3 bị reject. App cũ không nhận backup v3. Không mang generation nội bộ DB sang máy khác. Xuất tại client, không request server; JSON không mã hóa.
+Các record trong data dùng contract ở trên. Backup chứa reader state, nội dung packs và review state đã lưu; chưa chứa form thẻ đang sửa. Reader memory/draft chưa checkpoint vẫn được xuất khi hợp lệ. v1/v2 dùng shape data cũ không có packs; normalize packs=[]; v1/v2/v3 thêm review rỗng và envelope v4, giữ IDs/revisions/draft/settings. v1 chỉ paste/txt, có PDF bị reject; v2/v3 cho PDF. Future version >4 bị reject. App cũ không nhận backup v4. Không mang generation nội bộ DB sang máy khác. Xuất tại client, không request server; JSON không mã hóa.
 
 Validator runtime kiểm exact keys, types/ranges, UUID trùng, liên kết document/revision/position/draft, original-revision0 và timestamps. Kiểm 32 MiB trước đọc file/parse, depth tối đa 12 trước JSON.parse (ngoặc trong string không tính). Reject sai type, future version, malformed/large JSON, unknown fields. Không eval, remote schema hoặc $ref.
 
@@ -78,6 +89,6 @@ Select → parse/validate → merge preview đếm mới/trùng → confirm → 
 
 ## Migration / failure
 
-M1a không có DB. M3a giữ khai báo/upgrade v1→v2, thêm v3 và store packs. Upgrade 1→2→3 chỉ đổi meta.schemaVersion; documents/positions/settings/draft/generation giữ nguyên, packs mới rỗng. Meta version không hợp lệ abort/rollback. DB rỗng chưa có meta giữ rỗng. Native version phải là 30 ở mỗi read/write; kho tương lai bị chặn, không xóa. App M1b/M2 cũ chặn native30; tab cũ phải đóng connection khi versionchange trước nâng cấp. Không hỗ trợ hạ schema. Unit/integration kiểm M1b/M2 migration và rollback; browser kiểm native20→30 giữ PDF, vị trí và restore backup3 cả reader/packs.
+M1a không có DB. M3b giữ upgrade1→2→3, thêm4 và review aggregate. Upgrade giữ documents/positions/settings/draft/packs/generation, thêm review mặc định; meta sai abort/rollback. Native version phải40 ở mỗi read/write; kho tương lai bị chặn, không xóa. App cũ chặn native40; tab cũ phải đóng connection khi versionchange trước nâng cấp. Không hỗ trợ hạ schema. Unit/integration kiểm M1b/M2/M3a migration và rollback; browser kiểm migration reader và backup4 reader/packs/review.
 
 Read failure không ghi đè kho chưa đọc. Save failure giữ memory, báo chưa lưu; retry vẫn kiểm generation. Browser có thể xóa IndexedDB, quota/lifecycle không bảo đảm durability tuyệt đối. Dữ liệu theo origin: dev/preview khác port là kho khác; backup dùng chuyển thủ công, không phải sync hay Study Pack.

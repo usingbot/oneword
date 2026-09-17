@@ -1,12 +1,14 @@
 import { currentText, type TextDocument } from './document'
 import { defaultSettings, segment, type ReaderSettings } from '../domain/reader'
 import type { StudyPack } from './study-pack'
+import { emptyReview, type ReviewData } from './review'
 
 export interface Preferences { reader: ReaderSettings; glow: boolean; progress: boolean; fontSize: number }
 export const defaultPreferences: Preferences = { reader: defaultSettings, glow: true, progress: true, fontSize: 48 }
 export interface ReadingPosition { documentId: string; revisionId: string; offset: number; settings: ReaderSettings; updatedAt: string }
 export interface Draft { documentId: string | null; text: string }
 export interface LibraryData {
+  review: ReviewData
   packs: readonly StudyPack[]
   documents: readonly TextDocument[]
   positions: readonly ReadingPosition[]
@@ -14,11 +16,11 @@ export interface LibraryData {
   activeDocumentId: string | null
   draft: Draft | null
 }
-export const emptyLibrary = (): LibraryData => ({ packs: [], documents: [], positions: [], preferences: structuredClone(defaultPreferences), activeDocumentId: null, draft: null })
+export const emptyLibrary = (): LibraryData => ({ review: emptyReview(), packs: [], documents: [], positions: [], preferences: structuredClone(defaultPreferences), activeDocumentId: null, draft: null })
 export interface StoredLibrary { data: LibraryData; generation: number }
 export interface ReaderStorage {
   read(): Promise<StoredLibrary>
-  save(data: LibraryData, expectedGeneration: number): Promise<number>
+  save(data: LibraryData, expectedGeneration: number, expectedReviewGeneration?: number): Promise<number>
   close(): void
 }
 export function resumePosition(doc: TextDocument, position?: ReadingPosition) {
@@ -69,10 +71,10 @@ export class Persistence {
     this.report('saved'); return true
   }
   async retry() { if (this.loadFailed) { this.report('error', 'Không đọc được kho dữ liệu ban đầu. Hãy xuất sao lưu phiên rồi tải lại để thử mở kho; chưa ghi thay đổi.'); return false }; this.blocked = false; return this.flush() }
-  async restore(data: LibraryData) {
+  async restore(data: LibraryData, expectedReviewGeneration?: number) {
     if (!await this.flush()) throw new Error('Cần giải quyết lỗi lưu trữ trước khi khôi phục. Hãy xuất sao lưu phiên hiện tại.')
     // Publish the restored memory state only after the atomic transaction commits.
-    const generation = await this.storage.save(data, this.generation)
+    const generation = await this.storage.save(data, this.generation, expectedReviewGeneration)
     this.generation = generation; this.data = data; this.report('saved')
   }
   dispose() { clearTimeout(this.timer); this.storage.close() }

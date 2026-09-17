@@ -23,7 +23,7 @@ describe('real adapter with fake-indexeddb', () => {
     await old.table('meta').put({ id: 'library', schemaVersion: 2, generation: 9, activeDocumentId: doc.id, draft: data.draft }); old.close()
     const store = make(name)
     expect(await store.read()).toEqual({ data, generation: 9 })
-    expect(store.db.backendDB().version).toBe(30)
+    expect(store.db.backendDB().version).toBe(40)
     const pack = createPack('New study content')
     await store.save({ ...data, packs: [pack] }, 9)
     expect((await store.read()).data.documents).toEqual(data.documents)
@@ -77,8 +77,8 @@ describe('real adapter with fake-indexeddb', () => {
     old.close()
     const store = make(name)
     expect(await store.read()).toEqual({ data, generation: 7 })
-    expect(store.db.backendDB().version).toBe(30)
-    expect((await store.db.table('meta').get('library')).schemaVersion).toBe(3)
+    expect(store.db.backendDB().version).toBe(40)
+    expect((await store.db.table('meta').get('library')).schemaVersion).toBe(4)
     expect(await store.save(data, 7)).toBe(8)
   })
   it('rolls back a rejected migration instead of changing the old meta record', async () => {
@@ -146,7 +146,7 @@ describe('real adapter with fake-indexeddb', () => {
   })
   it('rejects a future database version without deleting its data', async () => {
     const name = crypto.randomUUID(), future = new Dexie(name)
-    future.version(4).stores({ documents: 'id', positions: 'documentId', settings: 'id', meta: 'id', packs: 'id' })
+    future.version(5).stores({ documents: 'id', positions: 'documentId', settings: 'id', meta: 'id', packs: 'id' })
     await future.open(); await future.table('meta').put({ id: 'sentinel', value: 'keep' }); future.close()
     await expect(make(name).read()).rejects.toThrow()
     await future.open(); expect(await future.table('meta').get('sentinel')).toEqual({ id: 'sentinel', value: 'keep' }); future.close()

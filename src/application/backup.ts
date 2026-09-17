@@ -1,3 +1,4 @@
+import { emptyReview, mergeReview, validateReview } from './review-validation'
 import { freezeDocument, validateText, type TextDocument } from './document'
 import { type LibraryData, type Preferences, type ReadingPosition } from './library'
 import { type ReaderSettings } from '../domain/reader'
@@ -6,7 +7,7 @@ import { mergeStudyPacks, validateStudyLibrary } from './study-pack'
 
 export const MAX_BACKUP_BYTES = 32 * 1024 * 1024
 export const BACKUP_TYPE = 'oneword-personal-backup'
-export interface BackupEnvelope { type: typeof BACKUP_TYPE; schemaVersion: 3; exportedAt: string; data: LibraryData }
+export interface BackupEnvelope { type: typeof BACKUP_TYPE; schemaVersion: 4; exportedAt: string; data: LibraryData }
 function invalid(message = 'Cấu trúc hoặc tham chiếu không hợp lệ.'): never { throw new Error(message) }
 function object(value: unknown, keys: string[]): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return invalid()
@@ -31,7 +32,7 @@ function preferences(value: unknown): Preferences {
   return { reader: settings(p.reader), glow: bool(p.glow), progress: bool(p.progress), fontSize: integer(p.fontSize, 28, 80) }
 }
 export function validateLibrary(value: unknown): LibraryData {
-  const data = object(value, ['documents', 'positions', 'preferences', 'activeDocumentId', 'draft', 'packs'])
+  const data = object(value, ['documents', 'positions', 'preferences', 'activeDocumentId', 'draft', 'packs', 'review'])
   const ids = new Set<string>(), revisionIds = new Set<string>()
   const documents: TextDocument[] = list(data.documents, 100).map(value => {
     const isPdf = !!value && typeof value === 'object' && 'source' in value && value.source === 'pdf'
@@ -86,10 +87,10 @@ export function validateLibrary(value: unknown): LibraryData {
     if (documentId !== activeDocumentId) return invalid('Bản nháp không khớp tài liệu đang mở.')
     draft = { documentId, text: text(d.text) }
   }
-  return { documents, positions, preferences: preferences(data.preferences), activeDocumentId, draft, packs: validateStudyLibrary(data.packs) }
+  return { documents, positions, preferences: preferences(data.preferences), activeDocumentId, draft, packs: validateStudyLibrary(data.packs), review: validateReview(data.review, validateStudyLibrary(data.packs)) }
 }
 export function exportBackup(data: LibraryData): string {
-  const envelope: BackupEnvelope = { type: BACKUP_TYPE, schemaVersion: 3, exportedAt: new Date().toISOString(), data: validateLibrary(data) }
+  const envelope: BackupEnvelope = { type: BACKUP_TYPE, schemaVersion: 4, exportedAt: new Date().toISOString(), data: validateLibrary(data) }
   const json = JSON.stringify(envelope, null, 2)
   if (new TextEncoder().encode(json).byteLength > MAX_BACKUP_BYTES) return invalid('Sao lưu vượt giới hạn 32 MiB.')
   return json
@@ -108,11 +109,11 @@ export function parseBackup(json: string): BackupEnvelope {
   try { parsed = JSON.parse(json) } catch { return invalid('Không đọc được JSON sao lưu.') }
   const envelope = object(parsed, ['type', 'schemaVersion', 'exportedAt', 'data'])
   if (envelope.type !== BACKUP_TYPE) return invalid('Không phải Personal Backup của OneWord.')
-  if (envelope.schemaVersion !== 1 && envelope.schemaVersion !== 2 && envelope.schemaVersion !== 3) return invalid('Chưa hỗ trợ phiên bản sao lưu này. Không thay đổi dữ liệu hiện có.')
-  const legacy = envelope.schemaVersion < 3 ? object(envelope.data, ['documents', 'positions', 'preferences', 'activeDocumentId', 'draft']) : null
-  const data = validateLibrary(legacy ? { ...legacy, packs: [] } : envelope.data)
+  if (envelope.schemaVersion !== 1 && envelope.schemaVersion !== 2 && envelope.schemaVersion !== 3 && envelope.schemaVersion !== 4) return invalid('Chưa hỗ trợ phiên bản sao lưu này. Không thay đổi dữ liệu hiện có.')
+  const legacy = envelope.schemaVersion < 4 ? object(envelope.data, ['documents', 'positions', 'preferences', 'activeDocumentId', 'draft', ...(envelope.schemaVersion === 3 ? ['packs'] : [])]) : null
+  const data = validateLibrary(legacy ? { packs: [], ...legacy, review: emptyReview() } : envelope.data)
   if (envelope.schemaVersion === 1 && data.documents.some(d => d.source === 'pdf')) return invalid('PDF cần định dạng sao lưu v2.')
-  return { type: BACKUP_TYPE, schemaVersion: 3, exportedAt: timestamp(envelope.exportedAt), data }
+  return { type: BACKUP_TYPE, schemaVersion: 4, exportedAt: timestamp(envelope.exportedAt), data }
 }
 export function mergeBackup(current: LibraryData, incoming: LibraryData) {
   const local = validateLibrary(current), backup = validateLibrary(incoming)
@@ -128,7 +129,7 @@ export function mergeBackup(current: LibraryData, incoming: LibraryData) {
     preferences: empty ? backup.preferences : local.preferences,
     activeDocumentId: empty ? backup.activeDocumentId : local.activeDocumentId,
     draft: empty ? backup.draft : local.draft,
-    packs: study.packs,
+    packs: study.packs, review: mergeReview(local.review, backup.review, study.packs),
   })
   // Keep every successful library representable by our own backup format.
   exportBackup(data)
