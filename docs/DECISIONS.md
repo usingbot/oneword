@@ -1,5 +1,16 @@
 # Quyết định đã được người dùng duyệt
 
+## Quyết định M3c — 17/09/2026
+
+- Một đáp án đúng, 2–6 choices, identity độc lập thứ tự. Không thêm thư viện hoặc type câu khác.
+- Study Pack v2 cho quiz, giữ v1; Personal Backup v5 và DB v5 để thêm personal attempts, giữ compatibility cũ.
+- Mỗi attempt chụp câu/revision, choice order/question order, seed, selection, flags/current, timestamps/result. Sửa/xóa content không thay lịch sử.
+- Practice chốt từng câu; Test chỉ lộ đúng/sai sau xác nhận nộp. Bỏ trống sai, ảnh essential thiếu phải đánh dấu loại và báo mẫu số thực tế.
+- Fisher–Yates/Mulberry32 có seed để kiểm thử; không claim random bảo mật. Revision guard transaction để từ chối stale tabs; không tự merge đáp án mâu thuẫn.
+- Quiz và FSRS độc lập tuyệt đối; không ánh xạ đúng/sai vào rating. Không PWA/deploy/AI/backend. Offline áp dụng sau khi app shell đã tải, media ngoài có thể không có.
+- Giới hạn 200 attempts và 32 MiB backup; không tự dọn lịch sử. [QUIZ.md](QUIZ.md) ghi rõ giới hạn và hành vi.
+
+
 ## Phê duyệt M3b — 17/09/2026
 
 - Baseline main sạch c0283f7, M3a đã chấp nhận. Triển khai ôn Anki-style/FSRS local, ratings đúng nghĩa, queue/daily limit, multi-tab guard/idempotency/undo, backup/migration; không quiz/AI/backend/accounts/cloud/PWA/deploy/.apkg/AnkiWeb/stats/optimizer.

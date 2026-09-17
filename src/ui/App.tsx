@@ -1,3 +1,4 @@
+import { IndexedDbQuiz } from '../storage/quiz-store'
 import { IndexedDbReview } from '../storage/review-store'
 import { pruneReview } from '../application/review'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -45,6 +46,7 @@ export function App() {
   const latest = useRef<LibraryData>(emptyLibrary())
   const previousCheckpoint = useRef({ document: doc, status: reader.status })
   const [storage] = useState(() => new IndexedDbStorage())
+  const [quizGateway] = useState(() => new IndexedDbQuiz(storage.db))
   const [reviewGateway] = useState(() => new IndexedDbReview(storage.db))
   const [persistence] = useState(() => new Persistence(storage, (status, message = '') => { setSaveStatus(status); setSaveError(message) }))
   const stage = useRef<HTMLElement>(null)
@@ -103,7 +105,7 @@ export function App() {
       const index = positions.findIndex(p => p.documentId === doc.id)
       if (index < 0) positions.push(position); else positions[index] = position
     }
-    const data: LibraryData = { review: pruneReview(latest.current.review, packs), packs, documents, positions, preferences: { reader: settings, glow, progress, fontSize }, activeDocumentId: doc?.id ?? null, draft: dirty ? { documentId: doc?.id ?? null, text: draft } : null }
+    const data: LibraryData = { quizActiveAttemptId: latest.current.quizActiveAttemptId, quizAttempts: latest.current.quizAttempts, review: pruneReview(latest.current.review, packs), packs, documents, positions, preferences: { reader: settings, glow, progress, fontSize }, activeDocumentId: doc?.id ?? null, draft: dirty ? { documentId: doc?.id ?? null, text: draft } : null }
     latest.current = data
     const previous = previousCheckpoint.current
     persistence.update(data, previous.document !== doc || previous.status === 'playing' && reader.status !== 'playing')
@@ -137,13 +139,13 @@ export function App() {
 
   async function downloadBackup() {
     try {
-      let studyContent = { packs: latest.current.packs, review: latest.current.review }, memoryOnly = false
-      try { const snapshot = await reviewGateway.read(); studyContent = { packs: snapshot.packs, review: snapshot.data } } catch { memoryOnly = true }
+      let studyContent = { packs: latest.current.packs, review: latest.current.review, quizAttempts: latest.current.quizAttempts, quizActiveAttemptId: latest.current.quizActiveAttemptId }, memoryOnly = false
+      try { const { data } = await storage.read(); studyContent = { packs: data.packs, review: data.review, quizAttempts: data.quizAttempts, quizActiveAttemptId: data.quizActiveAttemptId } } catch { memoryOnly = true }
       const json = exportBackup({ ...latest.current, ...studyContent })
       const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
       const link = document.createElement('a'); link.href = url; link.download = `oneword-backup-${new Date().toISOString().slice(0, 10)}.json`; link.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
-      setNotice('Đã tạo tệp sao lưu từ phiên hiện tại, gồm cả bản nháp. Giữ tệp ở nơi riêng tư.' + (memoryOnly ? ' Không đọc được kho lịch ôn: bản này chỉ chứa snapshot trong bộ nhớ, có thể thiếu lượt ôn mới.' : ''))
+      setNotice('Đã tạo tệp sao lưu từ phiên hiện tại, gồm cả bản nháp. Giữ tệp ở nơi riêng tư.' + (memoryOnly ? ' Không đọc được kho lịch ôn: bản này chỉ chứa snapshot trong bộ nhớ, có thể thiếu lượt ôn hoặc quiz mới.' : ''))
     } catch (e) { setError((e as Error).message) }
   }
 
@@ -155,7 +157,8 @@ export function App() {
       if (file.size > MAX_BACKUP_BYTES) throw new Error('Sao lưu vượt giới hạn 32 MiB.')
       const backup = parseBackup(await file.text())
       if (request !== backupReadId.current) return
-      const result = mergeBackup({ ...latest.current, review: (await reviewGateway.read()).data }, backup.data)
+      const currentQuiz = await quizGateway.read()
+      const result = mergeBackup({ ...latest.current, review: (await reviewGateway.read()).data, quizAttempts: currentQuiz.attempts, quizActiveAttemptId: currentQuiz.activeAttemptId }, backup.data)
       setBackupPreview({ backup, added: result.added, duplicates: result.duplicates, packsAdded: result.packsAdded, packsDuplicates: result.packsDuplicates })
     } catch (e) { if (request === backupReadId.current) setError((e as Error).message) }
   }
@@ -164,9 +167,9 @@ export function App() {
     if (!backupPreview || restoring) return
     setRestoring(true)
     try {
-      const currentReview = await reviewGateway.read()
-      const result = mergeBackup({ ...latest.current, review: currentReview.data }, backupPreview.backup.data)
-      await persistence.restore(result.data, currentReview.generation)
+      const currentReview = await reviewGateway.read(), currentQuiz = await quizGateway.read()
+      const result = mergeBackup({ ...latest.current, review: currentReview.data, quizAttempts: currentQuiz.attempts, quizActiveAttemptId: currentQuiz.activeAttemptId }, backupPreview.backup.data)
+      await persistence.restore(result.data, currentReview.generation, currentQuiz.generation)
       showLibrary(result.data); setBackupPreview(null); setError(''); setNotice('Đã khôi phục bằng một transaction. Dữ liệu có sẵn được giữ nguyên.')
     } catch { setError('Khôi phục thất bại. Không ghi một phần dữ liệu. Phiên hiện tại được giữ nguyên; hãy kiểm tra dung lượng hoặc tải lại sau khi xuất sao lưu.'); setBackupPreview(null) }
     finally { setRestoring(false) }
@@ -396,14 +399,14 @@ export function App() {
       </div>
       <div className="messages" inert={focus}>{error && <p className="error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{dirty && doc && <p>Văn bản có thay đổi. Áp dụng hoặc hoàn tác trước khi đọc.</p>}</div>
     </main>
-    {study && ready && <StudyArea reviewGateway={reviewGateway} packs={packs} onChange={saveStudyPacks} onDirty={setStudyDirty} />}
-    <footer inert={focus || !!backupPreview || !!pdfFile}><span>Văn bản ở trên thiết bị của bạn. Không gửi lên server.</span><span>ONEWORD / M3b</span></footer>
+    {study && ready && <StudyArea quizGateway={quizGateway} reviewGateway={reviewGateway} packs={packs} onChange={saveStudyPacks} onDirty={setStudyDirty} />}
+    <footer inert={focus || !!backupPreview || !!pdfFile}><span>Văn bản ở trên thiết bị của bạn. Không gửi lên server.</span><span>ONEWORD / M3c</span></footer>
     {pdfFile && <PdfImport file={pdfFile} onCancel={() => { setPdfFile(null); setNotice('Đã hủy nhập PDF. Không tạo tài liệu; phiên trước được giữ nguyên.') }} onAccept={(result, working) => {
       const next = createPdfDocument(result, pdfFile.name, working)
       publishDocument(next); setDraft(working); setError(''); setContext(false); engine.load(working, settings); setPdfFile(null)
       setNotice('Đã tạo tài liệu từ PDF. Bản trích xuất gốc được giữ riêng. Bấm đọc khi sẵn sàng; kiểm tra trạng thái lưu trên thiết bị.')
     }} />}
-    {backupPreview && <div className="restore-overlay"><section role="dialog" aria-modal="true" aria-label="Xem trước khôi phục" className="restore-dialog" onKeyDown={e => { if (e.key === 'Escape' && !restoring) setBackupPreview(null); if (e.key === 'Tab') { const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]; const next = buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length]; e.preventDefault(); next?.focus() } }}><h2>Khôi phục sao lưu</h2><p>{backupPreview.added} tài liệu mới · {backupPreview.duplicates} tài liệu trùng hoàn toàn.</p><p>{backupPreview.packsAdded} pack mới · {backupPreview.packsDuplicates} pack trùng hoàn toàn.</p><p>Lịch ôn trong tệp: {backupPreview.backup.data.review.schedules.length} lịch · {backupPreview.backup.data.review.events.length} lượt · {backupPreview.backup.data.review.undos.length} hoàn tác. Lịch sử cá nhân khác nhau sẽ bị chặn.</p><p>Gộp và giữ mọi tài liệu có sẵn. Tài liệu trùng giữ vị trí đọc hiện tại. Thiết lập, tài liệu đang mở và bản nháp của sao lưu chỉ được nhận khi thư viện hiện tại rỗng.</p><p>Không có tài liệu nào bị xóa hoặc ghi đè.</p><button autoFocus disabled={restoring} onClick={() => void confirmRestore()}>Xác nhận khôi phục</button><button disabled={restoring} onClick={() => setBackupPreview(null)}>Hủy khôi phục</button></section></div>}
+    {backupPreview && <div className="restore-overlay"><section role="dialog" aria-modal="true" aria-label="Xem trước khôi phục" className="restore-dialog" onKeyDown={e => { if (e.key === 'Escape' && !restoring) setBackupPreview(null); if (e.key === 'Tab') { const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]; const next = buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length]; e.preventDefault(); next?.focus() } }}><h2>Khôi phục sao lưu</h2><p>{backupPreview.added} tài liệu mới · {backupPreview.duplicates} tài liệu trùng hoàn toàn.</p><p>{backupPreview.packsAdded} pack mới · {backupPreview.packsDuplicates} pack trùng hoàn toàn.</p><p>Lượt quiz trong tệp: {backupPreview.backup.data.quizAttempts.length}. Lịch ôn trong tệp: {backupPreview.backup.data.review.schedules.length} lịch · {backupPreview.backup.data.review.events.length} lượt · {backupPreview.backup.data.review.undos.length} hoàn tác. Lịch sử cá nhân khác nhau sẽ bị chặn.</p><p>Gộp và giữ mọi tài liệu có sẵn. Tài liệu trùng giữ vị trí đọc hiện tại. Thiết lập, tài liệu đang mở và bản nháp của sao lưu chỉ được nhận khi thư viện hiện tại rỗng.</p><p>Không có tài liệu nào bị xóa hoặc ghi đè.</p><button autoFocus disabled={restoring} onClick={() => void confirmRestore()}>Xác nhận khôi phục</button><button disabled={restoring} onClick={() => setBackupPreview(null)}>Hủy khôi phục</button></section></div>}
     {focus && notice.startsWith('Trình duyệt') && <span className="sr-only" role="status">{notice}</span>}
   </div>
 }

@@ -1,4 +1,46 @@
-# Môi trường kiểm thử M1a / M1b / M2 / M3a / M3b
+# Môi trường kiểm thử M1a / M1b / M2 / M3a / M3b / M3c
+
+## M3c — kiểm chứng 17/09/2026
+
+Root D:/oneword, branch main, HEAD vẫn c0283f7. Đầu lượt M3c có 30 file M3b đã staged và chưa commit; giữ nguyên index đó. M3c được triển khai trong working tree, không commit/push/deploy/M4. Đã dùng project skills local-first và quality; không subagent, Product Design hoặc dependency/plugin mới. Package/lockfile không đổi so với index M3b; không tạo LICENSE dự án.
+
+Windows: Node22.17.0/npm11.15.0. Ubuntu WSL: Node24.21.0/npm11.19.0; production build được serve cùng origin localhost, Chromium sandbox giữ nguyên, native hidden qua WSLg. Fixture chỉ là dữ liệu tổng hợp. Không dùng dữ liệu cá nhân hoặc đọc secrets.
+
+| Lệnh đã thực chạy | Kết quả cuối |
+| --- | --- |
+| `npm run typecheck` | PASS, exit0 |
+| `npm run lint` | PASS, exit0 |
+| `npm test` | PASS, **173 tests / 12 files**, exit0 |
+| `npm run build` | PASS, exit0 |
+| `npm audit` | PASS, **0 vulnerabilities**, exit0 |
+| `git diff --check` | PASS, exit0 |
+| `git diff HEAD --check` | PASS, exit0; kiểm thêm toàn working tree so với HEAD |
+| `wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh` | PASS, **61/61**, 0 fail/skip/retry, exit0, **5.2 phút** |
+
+38 unit/integration mới trên baseline135; 10 browser quiz mới trên baseline51. Native hidden cuối37.4s. Lượt riêng ban đầu quiz7/7, sau mở rộng10 ca. Full trước có60/61 do locator exact label của textarea đã có nội dung; đổi sang textbox role/name, kiểm riêng editor1/1 rồi chạy lại full61/61. Không skip/xfail hoặc bỏ assertion. Những lỗi khác đã giải quyết trong phát triển: legacy backup fixtures phải bỏ cả fields v5, seed fixture cần thực sự chuyển vị trí đáp án, chờ transaction rồi assert radio checked, khởi tạo quiz generation0 trước checkpoint/restore đầu tiên, CSS radio bị kế thừa width100%, và lưu con trỏ lượt đang mở để resume bài cũ. Dòng trống EOF trong StudyFace.tsx từng chặn closure M3b đã được bỏ ở working tree, index M3b giữ nguyên. Sau build/browser cuối chỉ có chỉnh tài liệu và whitespace này, không đổi runtime.
+
+### Schema và ranh giới đã kiểm
+
+Study Pack v2 thêm quiz/question/choice IDs, explanation và revision; v1 vẫn nhập/xuất nguyên v1. Personal Backup v5 thêm `quizAttempts` và `quizActiveAttemptId`, đọc v1/v2/v3/v4. DB v5/native50 thêm store quiz; attempts giữ bản chụp câu hỏi/revision, question/choice order, đáp án, flags/current, UTC timestamps và result. Quiz không gọi FSRS hoặc ghi review store. Chi tiết hành vi/giới hạn nằm trong [QUIZ.md](QUIZ.md), prompt tĩnh trong [STUDY-PACK-PROMPT-v2.md](STUDY-PACK-PROMPT-v2.md).
+
+- `src/application/quiz.test.ts`: tạo/sửa/xóa nội dung và stable IDs; quiz v2/v1 boundary; 9 loại import lỗi; shuffle xác định/chấm theo ID; Practice khóa sau chốt; Test không có result trước nộp, bỏ trống sai; round-trip in-progress/flags/order; history snapshot; essential image loại khỏi mẫu số; 5 loại attempt bị sửa sai; conflict merge; backup1/2/3/4 migration.
+- `src/storage/quiz-store.test.ts`: adapter thật qua fake-indexeddb; idempotent start, hai connections/revision guard, reload/completion và review state bất biến; quota rollback/retry; reader checkpoint giữ live attempts; sửa/xóa content giữ snapshot; backup/restore có guard; empty generation hồi quy; selected older attempt/active pointer; v4→v5 migration và rollback. `review-store.test.ts` thêm v4 backup có FSRS event/schedule thực, migrate giữ nguyên. Các baseline legacy fixtures/expected versions đã cập nhật theo schema mới, không bỏ assertions bảo toàn dữ liệu.
+- `tests/quiz.spec.ts`: 10 ca browser thật: Practice sai→chốt→đúng/giải thích→next offline; Test shuffle→answer/flag→reload exact→confirm/cancel→submit→history; backup hai attempts (một hoàn thành, một dở dang) clear/restore; manual create/keyboard/narrow; essential failure; broken import; two tabs + failed put retry; editor edit/reorder/delete; essential HTTPS load; chọn bài cũ giữa nhiều attempt rồi reload. Đã kiểm DOM trước submit không render giải thích/correctness, không chỉ kiểm state.
+
+### Bằng chứng tại dự án
+
+- `artifacts/m3c-practice-privacy.json`: chọn sai, feedback/explanation sau chốt, thao tác offline sau khi app tải; review store không đổi; `errors: []`, `unexpectedRequests: []`.
+- `artifacts/m3c-shuffle-resume-fsrs.json`: seed0 tạo question order q1/q2/q0, choice order đầu right/other/wrong (đúng chuyển từ index1 sang0); reload giữ exact state, chấm1/3, unanswered2; không đổi review events/settings/schedules. DOM script text không thực thi đã assert bằng window sentinel. Completed reload/history cũng được kiểm.
+- `artifacts/m3c-backup-restore.json`: Personal Backup5, hai attempts và active pointer, clear IndexedDB test rồi restore; Study Pack v2 export chỉ content, so khớp fixture, không attempts.
+- `artifacts/m3c-image-exclusion.json`: không request trước opt-in, ảnh hỏng sau đúng1 request; explicit unavailable cho kết quả0/2 và excluded1, không âm thầm tính0/3. Ca ảnh load thành công còn kiểm không referrer/cookie.
+- `artifacts/m3c-practice.png`, `artifacts/m3c-test-results.png`, `artifacts/m3c-quiz-mobile.png`: ảnh đã xem trực tiếp; radio/choice text hiển thị đúng. Viewport390×844, keyboard Space chọn radio, selected state không chỉ màu, không horizontal overflow; có assertion radio width<30 và text width>120 để bắt regression CSS. Đây không phải kiểm điện thoại thật.
+- `playwright-report/index.html`: báo cáo full61 cuối cùng. Evidence từ các chặng trước được suite sinh lại với build hiện tại.
+- `artifacts/m3c-git-review.txt`: output nguyên văn git diff --stat/status và inventory files; không chứa secrets.
+
+Bundle Vite cuối: main JS456.38kB/gzip141.81kB; CSS17.39kB/gzip4.73kB. Lazy PDF429.74kB/gzip128.69kB, worker1265.41kB. Đây là kích thước build, không benchmark runtime/RAM hay ngân sách mới.
+
+Giới hạn: một đáp án đúng; tối đa200 attempts/200 câu mỗi attempt và backup32MiB; chưa xóa lịch sử từng lượt, chưa PWA/cold-start offline, chưa multi-answer hoặc chấm tự luận. Sau reload mở Học→Quiz để trở lại đúng lượt đã lưu. Ảnh ngoài tùy CORS/mạng và không cache. Không có anti-cheat: answer key là dữ liệu local, DevTools có thể đọc; Test mode che trong UI trước nộp. Quota được inject, không làm đầy đĩa thật; chưa test điện thoại thật, WebKit/Firefox quiz hoặc screen reader chuyên dụng. Giữ phạm vi M3c, không triển khai M4.
+
 
 ## M3b — kiểm chứng 17/09/2026
 

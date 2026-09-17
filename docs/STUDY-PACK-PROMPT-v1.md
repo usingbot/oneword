@@ -1,5 +1,7 @@
 # Prompt bên ngoài — OneWord Study Pack v1
 
+Bản kế tiếp hỗ trợ quiz: [STUDY-PACK-PROMPT-v2.md](STUDY-PACK-PROMPT-v2.md). Bản v1 này vẫn dùng cho flashcard-only.
+
 Đây là tài liệu tĩnh. Sao chép prompt, điền phần trong ngoặc vuông rồi tự dùng với dịch vụ AI bạn chọn. OneWord không gửi dữ liệu hoặc gọi AI API. Chỉ chia sẻ tài liệu bạn có quyền chia sẻ và kiểm chứng kết quả trước khi nhập. Không cung cấp Personal Backup cho mục đích tạo nội dung.
 
 ```text

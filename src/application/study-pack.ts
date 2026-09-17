@@ -1,3 +1,4 @@
+import { validateQuizContent, type Quiz, type QuizQuestion } from './quiz-content'
 export const STUDY_PACK_TYPE = 'oneword-study-pack'
 export const MAX_PACK_BYTES = 8 * 1024 * 1024
 export const MAX_PACKS = 100
@@ -9,7 +10,7 @@ export interface Deck { id: string; packId: string; title: string; description?:
 export interface Flashcard { id: string; deckId: string; front: CardFace; back: CardFace; tags?: readonly string[]; source?: string; order: number; revision: number }
 export interface StudyPack {
   type: typeof STUDY_PACK_TYPE
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   id: string
   title: string
   description: string
@@ -18,35 +19,37 @@ export interface StudyPack {
   createdAt: string
   updatedAt: string
   decks: readonly Deck[]
+  quizzes?: readonly Quiz[]
+  questions?: readonly QuizQuestion[]
   cards: readonly Flashcard[]
 }
 function fail(message: string): never { throw new Error(message) }
-function record(value: unknown, required: string[], optional: string[], label: string) {
+export function record(value: unknown, required: string[], optional: string[], label: string) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return fail(`${label}: cần một đối tượng JSON.`)
   const result = value as Record<string, unknown>
   for (const key of required) if (!Object.hasOwn(result, key)) fail(`${label}: thiếu trường ${key}.`)
   for (const key of Object.keys(result)) if (!required.includes(key) && !optional.includes(key)) fail(`${label}: không hỗ trợ trường ${key}. Chỉ nhận nội dung Study Pack.`)
   return result
 }
-function text(value: unknown, max: number, label: string, required = false): string {
+export function text(value: unknown, max: number, label: string, required = false): string {
   if (typeof value !== 'string' || value.length > max || value.includes('\u0000') || required && !value.trim()) return fail(`${label}: cần chuỗi ${required ? 'không rỗng, ' : ''}tối đa ${max} ký tự, không chứa NUL.`)
   return value
 }
-function id(value: unknown, label: string) {
+export function id(value: unknown, label: string) {
   const result = text(value, 80, label, true)
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(result)) fail(`${label}: chỉ dùng chữ ASCII, số, dấu chấm, gạch dưới hoặc gạch nối; bắt đầu bằng chữ/số.`)
   return result
 }
-function integer(value: unknown, min: number, label: string) {
+export function integer(value: unknown, min: number, label: string) {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > 1_000_000) return fail(`${label}: cần số nguyên từ ${min} đến 1000000.`)
   return value
 }
-function timestamp(value: unknown, label: string) {
+export function timestamp(value: unknown, label: string) {
   const result = text(value, 24, label, true)
   if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/u.test(result) || !Number.isFinite(Date.parse(result)) || new Date(result).toISOString() !== result) fail(`${label}: cần ngày giờ UTC hợp lệ, ví dụ 2026-09-17T00:00:00.000Z.`)
   return result
 }
-function array(value: unknown, max: number, label: string): unknown[] {
+export function array(value: unknown, max: number, label: string): unknown[] {
   if (!Array.isArray(value) || value.length > max) return fail(`${label}: cần danh sách tối đa ${max} mục.`)
   return value
 }
@@ -59,7 +62,7 @@ export function imageUrl(value: unknown): string {
   if (url.href.length > 2048) fail('URL ảnh sau chuẩn hóa vượt giới hạn 2048 ký tự.')
   return url.href
 }
-function face(value: unknown, label: string): CardFace {
+export function face(value: unknown, label: string): CardFace {
   const data = record(value, ['text'], ['image'], label)
   const content = text(data.text, 10_000, `${label} / chữ`)
   let image: CardImage | undefined
@@ -73,9 +76,10 @@ function face(value: unknown, label: string): CardFace {
 }
 const byId = <T extends { id: string }>(a: T, b: T) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 export function validateStudyPack(value: unknown): StudyPack {
-  const p = record(value, ['type', 'schemaVersion', 'id', 'title', 'description', 'createdAt', 'updatedAt', 'decks', 'cards'], ['author', 'source'], 'Study Pack')
+  const p = record(value, ['type', 'schemaVersion', 'id', 'title', 'description', 'createdAt', 'updatedAt', 'decks', 'cards'], ['author', 'source', 'quizzes', 'questions'], 'Study Pack')
   if (p.type !== STUDY_PACK_TYPE) fail('Đây không phải OneWord Study Pack. Personal Backup dùng luồng khôi phục riêng.')
-  if (p.schemaVersion !== 1) fail('Chưa hỗ trợ phiên bản Study Pack này; hiện chỉ nhận schemaVersion 1.')
+  if (p.schemaVersion !== 1 && p.schemaVersion !== 2) fail('Chưa hỗ trợ phiên bản Study Pack này; hiện nhận schemaVersion 1 hoặc 2.')
+  if (p.schemaVersion === 1 && ('quizzes' in p || 'questions' in p)) fail('Quiz cần Study Pack v2.')
   const packId = id(p.id, 'ID pack'), identifiers = new Set([packId])
   const unique = (value: unknown, label: string) => { const result = id(value, label); if (identifiers.has(result)) fail(`ID ${result} bị trùng trong Study Pack.`); identifiers.add(result); return result }
   const decks = array(p.decks, MAX_DECKS, 'Bộ thẻ').map((value, index): Deck => {
@@ -93,9 +97,10 @@ export function validateStudyPack(value: unknown): StudyPack {
     if (Object.hasOwn(c, 'tags')) { tags = array(c.tags, 20, `Nhãn của ${cardId}`).map(t => text(t, 64, 'Nhãn', true)); if (new Set(tags).size !== tags.length) fail(`Thẻ ${cardId} có nhãn trùng.`); tags.sort() }
     return { id: cardId, deckId, front: Object.freeze(face(c.front, `Mặt trước thẻ ${cardId}`)), back: Object.freeze(face(c.back, `Mặt sau thẻ ${cardId}`)), ...(tags ? { tags: Object.freeze(tags) } : {}), ...(Object.hasOwn(c, 'source') ? { source: text(c.source, 1000, 'Nguồn thẻ') } : {}), order: integer(c.order, 0, 'Thứ tự thẻ'), revision: integer(c.revision, 1, 'Revision thẻ') }
   }).sort(byId)
+  const quizContent = p.schemaVersion === 2 ? validateQuizContent(p.quizzes, p.questions, packId, deckIds, identifiers) : null
   const createdAt = timestamp(p.createdAt, 'Ngày tạo'), updatedAt = timestamp(p.updatedAt, 'Ngày sửa')
   if (updatedAt < createdAt) fail('Ngày sửa pack không thể trước ngày tạo.')
-  const result: StudyPack = { type: STUDY_PACK_TYPE, schemaVersion: 1, id: packId, title: text(p.title, 120, 'Tên pack', true), description: text(p.description, 2000, 'Mô tả pack'), ...(Object.hasOwn(p, 'author') ? { author: text(p.author, 200, 'Tác giả') } : {}), ...(Object.hasOwn(p, 'source') ? { source: text(p.source, 1000, 'Nguồn pack') } : {}), createdAt, updatedAt, decks: Object.freeze(decks.map(d => Object.freeze(d))), cards: Object.freeze(cards.map(c => Object.freeze(c))) }
+  const result: StudyPack = { type: STUDY_PACK_TYPE, schemaVersion: p.schemaVersion, ...(quizContent ?? {}), id: packId, title: text(p.title, 120, 'Tên pack', true), description: text(p.description, 2000, 'Mô tả pack'), ...(Object.hasOwn(p, 'author') ? { author: text(p.author, 200, 'Tác giả') } : {}), ...(Object.hasOwn(p, 'source') ? { source: text(p.source, 1000, 'Nguồn pack') } : {}), createdAt, updatedAt, decks: Object.freeze(decks.map(d => Object.freeze(d))), cards: Object.freeze(cards.map(c => Object.freeze(c))) }
   // Every accepted pack must remain exportable in our own formatted JSON shape.
   if (new TextEncoder().encode(JSON.stringify(result, null, 2)).byteLength > MAX_PACK_BYTES) fail('Study Pack vượt giới hạn 8 MiB.')
   return Object.freeze(result)
@@ -124,7 +129,7 @@ export function validateStudyLibrary(value: unknown): readonly StudyPack[] {
   let count = 0
   for (const pack of packs) {
     count += pack.cards.length
-    for (const entry of [pack, ...pack.decks, ...pack.cards]) { if (ids.has(entry.id)) fail(`ID ${entry.id} đã được dùng trong pack khác.`); ids.add(entry.id) }
+    for (const entry of [pack, ...pack.decks, ...pack.cards, ...pack.quizzes ?? [], ...pack.questions ?? []]) { if (ids.has(entry.id)) fail(`ID ${entry.id} đã được dùng trong pack khác.`); ids.add(entry.id) }
   }
   if (count > 10_000) fail('Thư viện vượt giới hạn 10.000 thẻ.')
   return Object.freeze(packs)
@@ -147,7 +152,7 @@ export function createPack(title: string, description = ''): StudyPack {
   const now = new Date().toISOString()
   return validateStudyPack({ type: STUDY_PACK_TYPE, schemaVersion: 1, id: crypto.randomUUID(), title, description, createdAt: now, updatedAt: now, decks: [], cards: [] })
 }
-function updatePack(pack: StudyPack, change: Partial<StudyPack>) { return validateStudyPack({ ...pack, ...change, updatedAt: new Date(Math.max(Date.now(), Date.parse(pack.updatedAt))).toISOString() }) }
+export function updatePack(pack: StudyPack, change: Partial<StudyPack>) { return validateStudyPack({ ...pack, ...change, updatedAt: new Date(Math.max(Date.now(), Date.parse(pack.updatedAt))).toISOString() }) }
 export function addDeck(pack: StudyPack, title: string, description = '') {
   const deck: Deck = { id: crypto.randomUUID(), packId: pack.id, title, description, order: pack.decks.length ? Math.max(...pack.decks.map(d => d.order)) + 1 : 0 }
   return updatePack(pack, { decks: [...pack.decks, deck] })

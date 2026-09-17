@@ -1,5 +1,10 @@
 # Hợp đồng dữ liệu M3b
 
+## M3c — hợp đồng bổ sung hiện tại
+
+Study Pack v2 thêm `quizzes`/`questions` bắt buộc, giữ v1 nguyên định dạng cho pack chưa có quiz. Choice ID scoped trong câu; question/quiz ID duy nhất toàn content library. Attempt personal tách riêng, giữ snapshot revision/nội dung và thứ tự thực tế. Personal Backup v5 thêm `quizAttempts` và con trỏ `quizActiveAttemptId`; v1–v4 migrate thêm [] và giữ review data. DB v5/native50 thêm store quiz. Attempt cùng ID khác nội dung/trạng thái chặn restore toàn bộ; ID mới gộp, bản giống nhau no-op. Validator tính lại kết quả từ IDs, kiểm order/refs/time/limits. Chi tiết schema/giới hạn/ảnh: [QUIZ.md](QUIZ.md). Các version v4 trong phần lịch sử bên dưới mô tả M3b.
+
+
 ## Thay đổi hiện tại từ M3a
 
 DB Dexie4/native40 thêm store review, key id=review: `{id,generation,data:{settings,schedules,events,undos}}`. Meta schemaVersion4; bốn stores reader và packs giữ keys/shape. Migration v3→v4 thêm review mặc định, giữ toàn bộ documents/positions/settings/draft/packs/generation. Schedule theo cardId, tách khỏi Study Packv1; event/undo immutable, có UTC instants và contentRevision. [Schema đầy đủ, giới hạn và invariants](FLASHCARD-SCHEDULING.md).

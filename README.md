@@ -1,6 +1,6 @@
 # OneWord
 
-Trình đọc TXT/PDF/dán văn bản theo nhịp RSVP. Chặng hiện tại: **M3b**, thêm ôn Anki-style bằng FSRS local; lưu thư viện đọc/học bằng IndexedDB, trao đổi nội dung bằng Study Pack JSON và sao lưu toàn bộ bằng Personal Backup.
+Trình đọc TXT/PDF/dán văn bản theo nhịp RSVP. Chặng hiện tại: **M3c**, thêm Quiz Luyện tập/Kiểm tra local, bên cạnh ôn Anki-style bằng FSRS; lưu thư viện đọc/học bằng IndexedDB, trao đổi nội dung bằng Study Pack JSON và sao lưu toàn bộ bằng Personal Backup.
 
 M1a, M1b, M2 và M3a đã được chấp nhận tại `f57c872`, `3078e62`, `da305cc` và `c0283f7`. Kiểm chứng và giới hạn trong [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md).
 
@@ -44,9 +44,15 @@ PDF.js **6.3.289** đọc File bằng worker local, theo từng trang/stream ch�
 
 Giữ raw text và ranh giới/cảnh báo từng trang bất biến; bản làm việc chỉ gom tab/space/NBSP, chuẩn hóa CRLF, bỏ khoảng trắng đầu/cuối dòng và gom dòng trống. Giữ Unicode, xuống dòng đơn và mọi dấu gạch nối, kể cả `informa-\ntion`; người dùng có thể tự sửa. Có nút trở về bản chuẩn hóa hoặc dùng raw.
 
-Lưu chữ gốc, revisions, filename, số trang, thời điểm/phiên bản extractor và cảnh báo; **không lưu PDF binary hoặc ảnh trang**. Personal Backup hiện là v4, đọc được v1/v2/v3; DB cũ nâng lên v4 bằng transaction, giữ dữ liệu cũ. App cũ không đọc được kho v4.
+Lưu chữ gốc, revisions, filename, số trang, thời điểm/phiên bản extractor và cảnh báo; **không lưu PDF binary hoặc ảnh trang**. Personal Backup hiện là v5, đọc được v1/v2/v3/v4; DB cũ nâng lên v5 bằng transaction, giữ dữ liệu cũ. App cũ không đọc được kho v5.
 
 Giới hạn: 50 MiB/tệp, 500 trang, 2 MiB chữ và 120 giây cho một lần xử lý PDF.js. PDF ảnh/scan hoặc trắng hoàn toàn báo không có chữ, không tạo tài liệu rỗng; mixed PDF ghi rõ trang thiếu/ít chữ. Chưa OCR và chưa nhập mật khẩu: PDF cần mật khẩu bị từ chối rõ ràng. File hỏng/không có trang/quá giới hạn bị chặn. Hai cột, bảng, footnote, font mapping sai hoặc công thức có thể trích xuất sai; heuristic chỉ cảnh báo, không bảo đảm đúng thứ tự. Không sửa thứ tự tự động.
+
+## Quiz (M3c)
+
+Chọn **Học / Flashcards → Quiz**. Tạo pack nếu chưa có, rồi **Tạo quiz** → lưu tên/mô tả → **Sửa nội dung quiz** → **Thêm câu hỏi**. Soạn 2–6 lựa chọn và chọn đúng một đáp án; có giải thích và ảnh HTTPS tùy chọn. Có thể sửa/xóa/đưa câu lên. Luyện tập chốt từng câu rồi hiện đúng/sai; Kiểm tra chỉ hiện kết quả sau xác nhận nộp toàn bài, cảnh báo câu bỏ trống. Xáo câu/lựa chọn là tùy chọn; reload giữ nguyên thứ tự, đáp án và vị trí đã lưu. Lịch sử cho mở lại bài đã nộp.
+
+Điểm chỉ là đúng/tổng của lượt này. Câu bỏ trống tính sai; câu đánh dấu thiếu ảnh thiết yếu được loại khỏi mẫu số và báo riêng. Quiz không ghi FSRS. Study Pack v2 chia sẻ nội dung quiz (v1 vẫn đọc/xuất được); Personal Backup v5 giữ cả bài đang làm và lịch sử. Chi tiết/giới hạn: [QUIZ.md](docs/QUIZ.md). Prompt ngoài tĩnh mới: [STUDY-PACK-PROMPT-v2.md](docs/STUDY-PACK-PROMPT-v2.md), không API AI trong app.
 
 ## Học / Flashcards
 
@@ -54,7 +60,7 @@ Chọn **Học / Flashcards** → **Tạo pack** → đặt tên/mô tả → t�
 
 Khi xem nội dung chỉ hiện mặt trước; **Xem đáp án** mở mặt sau, **Thẻ tiếp theo** che đáp án lại. Chế độ này không ghi lịch ôn; dùng **Ôn theo lịch** để đánh giá recall và cập nhật FSRS.
 
-**Nhập Study Pack** nhận tệp JSON hoặc nội dung dán → kiểm tra → xem trước và xung đột → xác nhận. Không ghi trước xác nhận. Pack trùng hoàn toàn được bỏ qua; cùng ID khác nội dung/metadata hoặc tái dùng ID con ở pack khác chặn toàn bộ. **Xuất Study Pack** chỉ xuất nội dung của pack đang chọn, giữ ID và quan hệ; không chứa vị trí đọc, thiết lập hoặc trạng thái cá nhân. **Personal Backup v4** chứa thư viện đọc, packs và lịch ôn cá nhân, dùng luồng sao lưu/khôi phục riêng.
+**Nhập Study Pack** nhận tệp JSON hoặc nội dung dán → kiểm tra → xem trước và xung đột → xác nhận. Không ghi trước xác nhận. Pack trùng hoàn toàn được bỏ qua; cùng ID khác nội dung/metadata hoặc tái dùng ID con ở pack khác chặn toàn bộ. **Xuất Study Pack** chỉ xuất nội dung của pack đang chọn, giữ ID và quan hệ; không chứa vị trí đọc, thiết lập hoặc trạng thái cá nhân. **Personal Backup v5** chứa thư viện đọc, packs, lịch ôn và quiz attempts cá nhân, dùng luồng sao lưu/khôi phục riêng.
 
 Ảnh chỉ là tham chiếu HTTPS, có alt và tùy chọn caption/essential. Mỗi ảnh cần bấm **Tải ảnh này**; không tải trước trong editor/import hoặc mặt sau đang che. Yêu cầu ảnh không gửi cookie cross-origin/referrer, nhưng máy chủ vẫn nhận IP và có thể nhận Origin; cần máy chủ cho phép CORS. Khi lỗi, giữ mô tả/chú thích và nhắc bỏ qua nếu ảnh thiết yếu. Không upload, proxy hoặc lưu binary ảnh vào kho ứng dụng; cache HTTP bình thường của trình duyệt vẫn có thể hoạt động.
 
@@ -68,7 +74,7 @@ Thẻ đến hạn trước thẻ mới. Mặc định 20 thẻ mới/ngày toà
 
 **Hoàn tác lượt ôn** phục hồi lịch và allowance khi còn an toàn, giữ dấu lịch sử. **Bỏ qua trong phiên** không ghi rating, dùng khi thiếu ảnh thiết yếu. Thẻ đang learning có thể chưa đến hạn; bấm **Cập nhật hàng đợi** sau thời gian chờ. Sửa/chuyển deck giữ schedule; xóa card bỏ schedule live nhưng giữ audit và lượt mới đã dùng. Tab stale không được ghi đè: ứng dụng tải lại lịch và yêu cầu recall lại.
 
-Personal Backup hiện là **v4**, đọc v1/v2/v3, giữ cả lịch ôn/events/undo/settings; DB nâng lên **v4/native40**. Study Pack vẫn **v1, chỉ nội dung**, không mang tiến độ cá nhân. Cần app đã tải để ôn offline; chưa có PWA cho cold start. Xem [chính sách và schema lịch ôn](docs/FLASHCARD-SCHEDULING.md) trước khi trao đổi backup giữa máy; các history khác nhau bị chặn, không tự merge.
+Personal Backup hiện là **v5**, đọc v1/v2/v3/v4, giữ lịch ôn/events/undo/settings và quiz attempts; DB nâng lên **v5/native50**. Study Pack **v1/v2 chỉ nội dung**, không mang tiến độ cá nhân. Cần app đã tải để ôn offline; chưa có PWA cho cold start. Xem [chính sách và schema lịch ôn](docs/FLASHCARD-SCHEDULING.md) trước khi trao đổi backup giữa máy; các history khác nhau bị chặn, không tự merge.
 
 ## Kiểm tra
 
@@ -91,7 +97,7 @@ Script dùng Node Linux portable trong `.tools` nếu có, nếu không dùng No
 
 ## Phạm vi
 
-M3b chưa có OCR, quiz, PWA, tài khoản, backend, AI API, telemetry, cloud sync, AnkiWeb, .apkg, optimizer hoặc dashboard nâng cao. Nội dung đọc, lịch ôn và Study Pack không upload; chỉ ảnh HTTPS được yêu cầu khi người dùng chọn tải. Không có font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ.
+M3c chưa có OCR, PWA, tài khoản, backend, AI API, telemetry, cloud sync, AnkiWeb, .apkg, optimizer hoặc dashboard nâng cao. Nội dung đọc, lịch ôn và Study Pack không upload; chỉ ảnh HTTPS được yêu cầu khi người dùng chọn tải. Không có font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ.
 
 Giấy phép dự án chưa được chọn. Không có LICENSE; MIT chưa được duyệt, AGPL-3.0 đang được cân nhắc. Không commit/push/deploy tự động.
 

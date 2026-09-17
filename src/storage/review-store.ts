@@ -11,7 +11,7 @@ export class IndexedDbReview implements ReviewGateway {
   constructor(private db: Dexie, private clock = systemClock) {}
   async read(): Promise<ReviewSnapshot> {
     return this.db.transaction('r', this.db.tables, async () => {
-      if (this.db.backendDB().version !== 40) throw new Error('Unsupported database version')
+      if (this.db.backendDB().version !== 50) throw new Error('Unsupported database version')
       const packs = validateStudyLibrary(await this.db.table('packs').toArray()), record = await this.db.table<ReviewRecord>('review').get('review')
       if (record && (!Number.isSafeInteger(record.generation) || record.generation < 0)) throw new Error('Invalid review generation')
       return { packs, data: validateReview(record?.data ?? emptyReview(), packs), generation: record?.generation ?? 0 }
@@ -19,7 +19,7 @@ export class IndexedDbReview implements ReviewGateway {
   }
   async execute(command: ReviewCommand): Promise<ReviewSnapshot> {
     return this.db.transaction('rw', this.db.tables, async () => {
-      if (this.db.backendDB().version !== 40) throw new Error('Unsupported database version')
+      if (this.db.backendDB().version !== 50) throw new Error('Unsupported database version')
       const packs = validateStudyLibrary(await this.db.table('packs').toArray()), table = this.db.table<ReviewRecord>('review'), record = await table.get('review')
       const current = validateReview(record?.data ?? emptyReview(), packs), generation = record?.generation ?? 0
       if (!Number.isSafeInteger(generation) || generation < 0) throw new Error('Invalid review generation')
@@ -57,7 +57,7 @@ export class IndexedDbReview implements ReviewGateway {
       }
       next = validateReview(next, packs)
       const meta = await this.db.table('meta').get('library'), prefs = await this.db.table('settings').get('reader')
-      exportBackup({ packs, review: next, documents: await this.db.table('documents').toArray(), positions: await this.db.table('positions').toArray(), activeDocumentId: meta?.activeDocumentId ?? null, draft: meta?.draft ?? null, preferences: prefs ? { reader: prefs.reader, glow: prefs.glow, progress: prefs.progress, fontSize: prefs.fontSize } : defaultPreferences })
+      exportBackup({ quizActiveAttemptId: (await this.db.table('quiz').get('quiz'))?.activeAttemptId ?? null, quizAttempts: (await this.db.table('quiz').get('quiz'))?.attempts ?? [], packs, review: next, documents: await this.db.table('documents').toArray(), positions: await this.db.table('positions').toArray(), activeDocumentId: meta?.activeDocumentId ?? null, draft: meta?.draft ?? null, preferences: prefs ? { reader: prefs.reader, glow: prefs.glow, progress: prefs.progress, fontSize: prefs.fontSize } : defaultPreferences })
       await table.put({ id: 'review', generation: generation + 1, data: next })
       return { packs, data: next, generation: generation + 1 }
     })

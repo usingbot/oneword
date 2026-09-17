@@ -1,3 +1,5 @@
+import { QuizArea } from './QuizArea'
+import type { QuizGateway } from '../application/quiz'
 import { Face } from './StudyFace'
 import { ReviewPanel } from './ReviewPanel'
 import type { ReviewGateway } from '../application/review'
@@ -35,7 +37,8 @@ function CardEditor({ pack, card, deckId, onSave, onCancel, busy }: { pack: Stud
   </form>
 }
 
-export function StudyArea({ packs, onChange, onDirty, reviewGateway }: { reviewGateway: ReviewGateway; packs: readonly StudyPack[]; onChange: (packs: readonly StudyPack[]) => Promise<void>; onDirty: (dirty: boolean) => void }) {
+export function StudyArea({ packs, onChange, onDirty, reviewGateway, quizGateway }: { quizGateway: QuizGateway; reviewGateway: ReviewGateway; packs: readonly StudyPack[]; onChange: (packs: readonly StudyPack[]) => Promise<void>; onDirty: (dirty: boolean) => void }) {
+  const [quizMode, setQuizMode] = useState(false), [quizDirty, setQuizDirty] = useState(false)
   const [reviewing, setReviewing] = useState(false)
   const [selected, setSelected] = useState('')
   const [deckId, setDeckId] = useState('')
@@ -60,7 +63,7 @@ export function StudyArea({ packs, onChange, onDirty, reviewGateway }: { reviewG
   const cards = (pack?.cards.filter(c => c.deckId === deck?.id) ?? []).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
   const card = cards.find(c => c.id === cardId) ?? cards[0]
   const conflict = preview ? mergeStudyPacks(packs, [preview]) : null
-  const dirty = !!editor || newPack || !!deckTitle || importing
+  const dirty = quizDirty || !!editor || newPack || !!deckTitle || importing
   useEffect(() => {
     onDirty(dirty)
     const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
@@ -98,8 +101,9 @@ export function StudyArea({ packs, onChange, onDirty, reviewGateway }: { reviewG
     } catch (e) { if (request === fileReadId.current) setError((e as Error).message) }
   }
   return <main id="study" className="study-area">
-    <div className="study-heading"><div><p className="eyebrow">NỘI DUNG HỌC</p><h1>Học với thẻ</h1><p>Tạo nội dung, tự nhớ rồi mở đáp án. Chọn ôn theo lịch khi bạn sẵn sàng.</p></div>
+    <div className="study-heading"><div><p className="eyebrow">NỘI DUNG HỌC</p><h1>{quizMode ? 'Học với quiz' : 'Học với thẻ'}</h1><p>{quizMode ? 'Luyện tập từng câu hoặc kiểm tra rồi xem lại kết quả.' : 'Tạo nội dung, tự nhớ rồi mở đáp án. Chọn ôn theo lịch khi bạn sẵn sàng.'}</p></div>
       <div className="study-actions"><button disabled={dirty || busy || reviewing} onClick={() => { setNewPack(true); setError(''); setMessage('') }}>Tạo pack</button><button disabled={dirty || busy || reviewing} onClick={() => { setImporting(true); setError(''); setMessage('') }}>Nhập Study Pack</button><button disabled={!pack || dirty || busy || reviewing} onClick={exportPack}>Xuất Study Pack</button></div></div>
+    <div className="study-actions" aria-label="Chế độ học"><button disabled={dirty || busy || reviewing} aria-pressed={!quizMode} onClick={() => setQuizMode(false)}>Flashcards</button><button disabled={dirty || busy || reviewing} aria-pressed={quizMode} onClick={() => setQuizMode(true)}>Quiz</button></div>
     {message && <p role="status">{message}</p>}{error && <p role="alert" className="error">{error}</p>}
     {newPack && <form aria-label="Tạo pack" onSubmit={e => { e.preventDefault(); report(async () => { const next = createPack(packTitle, description); await commit([...packs, next]); setSelected(next.id); setNewPack(false); setPackTitle(''); setDescription(''); resetStudy() }) }}><label>Tên pack<input autoFocus required maxLength={120} value={packTitle} disabled={busy} onChange={e => setPackTitle(e.target.value)} /></label><label>Mô tả pack<textarea aria-label="Mô tả pack" maxLength={2000} value={description} disabled={busy} onChange={e => setDescription(e.target.value)} /></label><div className="study-actions"><button disabled={busy} type="submit">Lưu pack mới</button><button disabled={busy} type="button" onClick={() => { setNewPack(false); setPackTitle(''); setDescription('') }}>Hủy tạo pack</button></div></form>}
     {importing && <section className="study-import" aria-label="Nhập Study Pack">
@@ -107,7 +111,7 @@ export function StudyArea({ packs, onChange, onDirty, reviewGateway }: { reviewG
       <label>Chọn tệp Study Pack<input type="file" accept=".json,application/json" disabled={busy} onChange={e => { void readFile(e.target.files?.[0]); e.target.value = '' }} /></label>
       <label>JSON Study Pack<textarea aria-label="JSON Study Pack" value={json} disabled={busy} onChange={e => { fileReadId.current++; setJson(e.target.value); setPreview(null) }} /></label>
       <div className="study-actions"><button disabled={busy} onClick={() => { fileReadId.current++; parse(json) }}>Kiểm tra và xem trước</button><button disabled={busy} onClick={() => { fileReadId.current++; setImporting(false); setPreview(null); setJson(''); setError('') }}>Hủy nhập Study Pack</button></div>
-      {preview && conflict && <section className="study-import-preview" aria-label="Xem trước Study Pack"><h3>{preview.title}</h3><p>{preview.description}</p><p>{preview.decks.length} bộ thẻ · {preview.cards.length} thẻ · {conflict.added} pack mới · {conflict.duplicates} pack đã có.</p>
+      {preview && conflict && <section className="study-import-preview" aria-label="Xem trước Study Pack"><h3>{preview.title}</h3><p>{preview.description}</p><p>{preview.quizzes?.length ?? 0} quiz · {preview.questions?.length ?? 0} câu hỏi · {preview.decks.length} bộ thẻ · {preview.cards.length} thẻ · {conflict.added} pack mới · {conflict.duplicates} pack đã có.</p>
         <ul>{preview.decks.map(d => <li key={d.id}>{d.title}: {preview.cards.filter(c => c.deckId === d.id).length} thẻ</li>)}</ul>
         {preview.cards[0] && <details><summary>Nội dung thẻ mẫu (hai mặt)</summary><p className="card-content">{preview.cards[0].front.text}</p><p className="card-content">{preview.cards[0].back.text}</p><p>Ảnh là tham chiếu, không tải trong preview import.</p></details>}
         {conflict.conflicts.map(message => <p role="alert" key={message}>{message}</p>)}
@@ -118,7 +122,8 @@ export function StudyArea({ packs, onChange, onDirty, reviewGateway }: { reviewG
           setSelected(preview.id); setImporting(false); setPreview(null); setJson(''); resetStudy(); setMessage(checked.added ? 'Đã nhập Study Pack.' : 'Pack trùng hoàn toàn: đã bỏ qua, không ghi đè.')
         })}>Xác nhận nhập Study Pack</button></section>}
     </section>}
-    {!newPack && !importing && <div className="study-workspace">
+    {!newPack && !importing && quizMode && <QuizArea selectedPackId={pack?.id ?? ''} onSelectPack={setSelected} packs={packs} gateway={quizGateway} onChange={onChange} onDirty={setQuizDirty} />}
+    {!newPack && !importing && !quizMode && <div className="study-workspace">
       <aside aria-label="Thư viện học"><h2>Packs</h2>{!packs.length && <p>Chưa có nội dung. Tạo pack hoặc nhập Study Pack để bắt đầu.</p>}
         <label>Chọn pack<select aria-label="Chọn pack" disabled={reviewing || !!editor || busy || !!deckTitle} value={pack?.id ?? ''} onChange={e => { setSelected(e.target.value); setDeckId(''); resetStudy(); setError('') }}>{!packs.length && <option value="">Chưa có pack</option>}{packs.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select></label>
         {pack && <><p>{pack.description}</p>{pack.author && <p>Tác giả: {pack.author}</p>}{pack.source && <p>Nguồn: {pack.source}</p>}

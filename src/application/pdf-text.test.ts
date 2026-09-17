@@ -48,13 +48,13 @@ describe('PDF text and source contract', () => {
     if (kind === 'offset') pdf.pages[0].start = 1
     if (kind === 'warning') pdf.pages[0].warnings.push('not-known')
     if (kind === 'unknown') pdf.binary = 'not-allowed'
-    if (kind === 'v1-pdf') { backup.schemaVersion = 1; delete backup.data.packs; delete backup.data.review }
+    if (kind === 'v1-pdf') { backup.schemaVersion = 1; delete backup.data.packs; delete backup.data.review; delete backup.data.quizAttempts; delete backup.data.quizActiveAttemptId }
     expect(() => parseBackup(JSON.stringify(backup))).toThrow()
   })
   it('accepts an M1b v1 backup without changing IDs, original or history', () => {
     const doc = revise(createDocument('original text', 'm1b.txt', 'txt'), 'edited text')
     const data = { ...emptyLibrary(), documents: [doc], activeDocumentId: doc.id, draft: { documentId: doc.id, text: 'draft' } }
-    const backup = JSON.parse(exportBackup(data)); backup.schemaVersion = 1; delete backup.data.packs; delete backup.data.review
-    expect(parseBackup(JSON.stringify(backup))).toMatchObject({ schemaVersion: 4, data })
+    const backup = JSON.parse(exportBackup(data)); backup.schemaVersion = 1; delete backup.data.packs; delete backup.data.review; delete backup.data.quizAttempts; delete backup.data.quizActiveAttemptId
+    expect(parseBackup(JSON.stringify(backup))).toMatchObject({ schemaVersion: 5, data })
   })
 })

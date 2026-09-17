@@ -1,5 +1,12 @@
 # OneWord Study Pack v1
 
+## M3c — Study Pack v2 hiện tại, tương thích v1
+
+V2 giữ các trường v1 dưới đây và thêm hai mảng bắt buộc `quizzes`/`questions`. Quiz `{id,packId,title,description,questionIds,deckId?}`; Question `{id,prompt,choices:[{id,text}],correctChoiceId,revision,image?,explanation?,tags?,source?}`. Một đáp án đúng theo choice ID; 2–6 choices; `questionIds` có thứ tự và không trùng, mọi tham chiếu phải tồn tại. Không nhận attempts/scores/history/flags/FSRS. V1 vẫn canonical nguyên v1; tạo quiz mới nâng riêng pack đó lên v2. App M3b không đọc v2. Import preview có số quiz/câu và dùng cùng conflict/atomic path.
+
+Giới hạn và schema chi tiết: [QUIZ.md](QUIZ.md). Prompt hiện tại hỗ trợ quiz: [STUDY-PACK-PROMPT-v2.md](STUDY-PACK-PROMPT-v2.md). Ví dụ v1 phía dưới vẫn hợp lệ cho flashcards; các ghi chú chỉ-v1 hoặc không-quiz là lịch sử M3a/M3b.
+
+
 M3a — content-only. Runtime contract: `src/application/study-pack.ts`. Đây là hợp đồng thật của import/export, không phải schema tương lai. Tất cả object từ chối trường lạ, kể cả HTML/template/script, scheduling, history, settings, `$ref` hoặc media nhúng. Text có ký tự `<script>` được giữ như chữ và hiển thị bằng React text nodes, không parse HTML.
 
 ## Ví dụ hợp lệ

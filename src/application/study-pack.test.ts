@@ -48,7 +48,7 @@ describe('Study Pack content contract', () => {
   it.each(['type', 'future', 'duplicate-card', 'duplicate-deck', 'reference', 'pack-reference', 'missing', 'long-title', 'long-text', 'too-many-cards', 'too-many-decks', 'id', 'timestamp', 'revision', 'empty-face', 'unknown', 'scheduling', 'external-ref', 'data-image'])('rejects %s input at runtime', kind => {
     const value = JSON.parse(exportStudyPack(studyFixture()))
     if (kind === 'type') value.type = 'oneword-personal-backup'
-    if (kind === 'future') value.schemaVersion = 2
+    if (kind === 'future') value.schemaVersion = 3
     if (kind === 'duplicate-card') value.cards.push(value.cards[0])
     if (kind === 'duplicate-deck') value.decks.push(value.decks[0])
     if (kind === 'reference') value.cards[0].deckId = 'missing-deck'
@@ -94,14 +94,14 @@ describe('Study Pack content contract', () => {
     const pack = studyFixture(), doc = createDocument('reader original', 'reader')
     const data = { ...emptyLibrary(), documents: [doc], packs: [pack], activeDocumentId: doc.id }
     const parsed = parseBackup(exportBackup(data))
-    expect(parsed.schemaVersion).toBe(4); expect(parsed.data).toEqual(data)
+    expect(parsed.schemaVersion).toBe(5); expect(parsed.data).toEqual(data)
     expect(mergeBackup(emptyLibrary(), parsed.data).data).toEqual(data)
     const conflict = { ...data, packs: [validateStudyPack({ ...pack, title: 'changed' })] }
     expect(() => mergeBackup(data, conflict)).toThrow('khác nội dung')
   })
   it.each([1, 2])('migrates Personal Backup v%s by adding empty content, leaving reader state intact', version => {
     const doc = createDocument('reader', 'old.txt', 'txt'), data = { ...emptyLibrary(), documents: [doc], activeDocumentId: doc.id }
-    const old = JSON.parse(exportBackup(data)); old.schemaVersion = version; delete old.data.packs; delete old.data.review
-    expect(parseBackup(JSON.stringify(old))).toMatchObject({ schemaVersion: 4, data })
+    const old = JSON.parse(exportBackup(data)); old.schemaVersion = version; delete old.data.packs; delete old.data.review; delete old.data.quizAttempts; delete old.data.quizActiveAttemptId
+    expect(parseBackup(JSON.stringify(old))).toMatchObject({ schemaVersion: 5, data })
   })
 })

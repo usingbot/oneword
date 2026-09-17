@@ -26,6 +26,14 @@ function command(snapshot: ReviewSnapshot, cardId = snapshot.packs[0].cards[0].i
   return { type: 'rate', id: crypto.randomUUID(), cardId, contentRevision: card.revision, expectedRevision: snapshot.data.schedules.find(s => s.cardId === cardId)?.revision ?? 0, rating: 'good', settings: snapshot.data.settings }
 }
 describe('authoritative local review transactions', () => {
+  it('M3b v4 backup migration preserves nonempty FSRS schedules, events and settings exactly', async () => {
+    const { store, review } = await fixture()
+    await review.execute(command(await review.read()))
+    const data = (await store.read()).data, legacy = JSON.parse(exportBackup(data))
+    legacy.schemaVersion = 4; delete legacy.data.quizAttempts; delete legacy.data.quizActiveAttemptId
+    const migrated = parseBackup(JSON.stringify(legacy))
+    expect(migrated.schemaVersion).toBe(5); expect(migrated.data).toEqual(data); expect(migrated.data.review.events).toHaveLength(1)
+  })
   it('duplicate operation ID and parallel double-submit create exactly one immutable event', async () => {
     const { review } = await fixture(), request = command(await review.read())
     const [a, b] = await Promise.all([review.execute(request), review.execute(request)])
@@ -109,7 +117,7 @@ describe('authoritative local review transactions', () => {
     old.version(3).stores({ documents: 'id', positions: 'documentId', settings: 'id', meta: 'id', packs: 'id' })
     await old.table('packs').put(pack); await old.table('meta').put({ id: 'library', schemaVersion: 3, generation: 7, activeDocumentId: null, draft: null }); old.close()
     const migrated = make(name), data = await migrated.read()
-    expect(migrated.db.backendDB().version).toBe(40); expect(data.data.packs).toEqual([pack]); expect(data.generation).toBe(7); expect(data.data.review.events).toEqual([])
+    expect(migrated.db.backendDB().version).toBe(50); expect(data.data.packs).toEqual([pack]); expect(data.generation).toBe(7); expect(data.data.review.events).toEqual([])
     const badName = crypto.randomUUID(), bad = new Dexie(badName); bad.version(3).stores({ documents: 'id', positions: 'documentId', settings: 'id', meta: 'id', packs: 'id' })
     await bad.table('meta').put({ id: 'library', schemaVersion: 99 }); bad.close()
     await expect(make(badName).read()).rejects.toThrow(); await bad.open(); expect(bad.backendDB().version).toBe(30); expect(await bad.table('meta').get('library')).toEqual({ id: 'library', schemaVersion: 99 }); bad.close()

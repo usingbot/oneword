@@ -106,7 +106,7 @@ test('transaction failure leaves no partial event/schedule and supports retry', 
 })
 async function goodAttempt(page: Page) { await panel(page).getByRole('button', { name: 'Mở đáp án' }).click(); await panel(page).getByRole('button', { name: /3 · Nhớ/ }).click() }
 
-test('Personal Backup4 clear/restore preserves exact schedule/history/settings; Study Pack stays content-only', async ({ page, context, baseURL }, info) => {
+test('Personal Backup5 clear/restore preserves exact schedule/history/settings; Study Pack stays content-only', async ({ page, context, baseURL }, info) => {
   await seed(page); await enter(page)
   await panel(page).getByText('Thiết lập ôn', { exact: true }).click(); await panel(page).getByLabel('Thẻ mới mỗi ngày').fill('7'); await panel(page).getByRole('button', { name: 'Lưu giới hạn' }).click()
   await expect(panel(page).getByRole('status')).toContainText('Đã lưu giới hạn'); await good(page)
@@ -114,7 +114,7 @@ test('Personal Backup4 clear/restore preserves exact schedule/history/settings; 
   await page.getByRole('button', { name: 'Đọc', exact: true }).click()
   const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Xuất sao lưu', exact: true }).click()
   const path = info.outputPath('review-backup.json'); await (await download).saveAs(path)
-  const backup = JSON.parse(await readFile(path, 'utf8')); expect(backup.schemaVersion).toBe(4); expect(backup.data.review).toEqual(before.data)
+  const backup = JSON.parse(await readFile(path, 'utf8')); expect(backup.schemaVersion).toBe(5); expect(backup.data.review).toEqual(before.data)
   await page.goto('about:blank'); const cdp = await context.newCDPSession(page); await cdp.send('Storage.clearDataForOrigin', { origin: baseURL!, storageTypes: 'indexeddb' })
   await page.goto('/'); await page.getByLabel('Chọn tệp sao lưu').setInputFiles(path); await page.getByRole('button', { name: 'Xác nhận khôi phục' }).click()
   await expect(page.getByTestId('save-status')).toHaveText('Đã lưu trên thiết bị')

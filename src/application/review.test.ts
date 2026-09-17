@@ -49,9 +49,9 @@ describe('study days and content separation', () => {
     const doc = revise(createDocument('original reader text', 'old.txt', 'txt'), 'edited reader text')
     const deck = addDeck(createPack('M3a pack'), 'M3a deck'), pack = saveCard(deck, { deckId: deck.decks[0].id, front: { text: 'Question' }, back: { text: 'Answer' } })
     const base = { ...emptyLibrary(), documents: [doc], activeDocumentId: doc.id, draft: { documentId: doc.id, text: 'unsaved draft' }, packs: version === 3 ? [pack] : [] }
-    const old = JSON.parse(exportBackup(base)); old.schemaVersion = version; delete old.data.review
+    const old = JSON.parse(exportBackup(base)); old.schemaVersion = version; delete old.data.review; delete old.data.quizAttempts; delete old.data.quizActiveAttemptId
     if (version < 3) delete old.data.packs
     const migrated = parseBackup(JSON.stringify(old))
-    expect(migrated.schemaVersion).toBe(4); expect(migrated.data).toEqual(base)
+    expect(migrated.schemaVersion).toBe(5); expect(migrated.data).toEqual(base)
   })
 })

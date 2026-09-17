@@ -13,4 +13,3 @@ function RemoteImage({ image }: { image: CardImage }) {
   </figure>
 }
 export function Face({ face }: { face: CardFace }) { return <><p className="card-content">{face.text}</p>{face.image && <RemoteImage key={face.image.url} image={face.image} />}</> }
-

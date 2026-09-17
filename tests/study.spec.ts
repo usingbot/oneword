@@ -201,7 +201,7 @@ test('invalid Study Pack reports human errors and never creates content', async 
   for (const [value, message] of [
     ['{', 'Không đọc được JSON'],
     [JSON.stringify({ ...pack, type: 'wrong' }), 'không phải'],
-    [JSON.stringify({ ...pack, schemaVersion: 2 }), 'phiên bản'],
+    [JSON.stringify({ ...pack, schemaVersion: 3 }), 'phiên bản'],
     [JSON.stringify({ ...pack, cards: [...pack.cards, ...pack.cards] }), 'bị trùng'],
     [JSON.stringify({ ...pack, cards: [{ ...pack.cards[0], deckId: 'missing' }] }), 'Thẻ card-fixture tham chiếu bộ thẻ missing'],
     [JSON.stringify({ ...pack, cards: [{ ...pack.cards[0], front: { text: 'x', image: { url: 'data:image/png;base64,AA', alt: 'x' } } }] }), 'https://'],
@@ -226,13 +226,13 @@ test('real M2 database migrates to current schema without losing PDF reader data
   await expect(page.getByTestId('current-chunk')).toHaveText('two')
   await expect(page.getByTestId('save-status')).toHaveText('Đã lưu trên thiết bị')
   const migrated = await inspect(page)
-  expect(migrated.version).toBe(40); expect(migrated.documents).toEqual(data.documents); expect(migrated.packs).toEqual([])
+  expect(migrated.version).toBe(50); expect(migrated.documents).toEqual(data.documents); expect(migrated.packs).toEqual([])
   await page.getByRole('button', { name: 'Học / Flashcards' }).click(); await preview(page); await confirm(page)
   await page.getByRole('button', { name: 'Đọc', exact: true }).click()
   const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Xuất sao lưu', exact: true }).click()
   const path = info.outputPath('personal-backup-v3.json'); await (await download).saveAs(path)
   const backup = JSON.parse(await readFile(path, 'utf8'))
-  expect(backup.schemaVersion).toBe(4); expect(backup.data.packs).toEqual([pack])
+  expect(backup.schemaVersion).toBe(5); expect(backup.data.packs).toEqual([pack])
   await page.goto('about:blank'); const cdp = await context.newCDPSession(page); await cdp.send('Storage.clearDataForOrigin', { origin: baseURL!, storageTypes: 'indexeddb' })
   await page.goto('/'); await page.getByLabel('Chọn tệp sao lưu').setInputFiles(path)
   await expect(page.getByRole('dialog')).toContainText('1 pack mới')

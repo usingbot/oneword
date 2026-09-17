@@ -1,5 +1,10 @@
 # Kiến trúc M3b
 
+## M3c — kiến trúc hiện tại
+
+`quiz-content.ts` mở rộng content bằng quiz/question; `quiz.ts` giữ contract attempts, randomization có seed, grading và validation. `IndexedDbQuiz` dùng transaction Dexie qua cùng storage boundary; `QuizArea`/`QuizEditor` chỉ gọi application/gateway, không raw IndexedDB. DB v5/native50 thêm aggregate store quiz có generation riêng. Reader/content save luôn giữ attempts live; review write chỉ ghi review. Backup đọc reader/content/review/quiz trong transaction, restore kiểm cả review/quiz generations. Snapshot câu hỏi/choice order giúp bài cũ không phụ thuộc nội dung đã sửa/xóa. Không dependency mới, không network service. [QUIZ.md](QUIZ.md) là đặc tả hiện tại; phần M3b bên dưới ghi lại mốc trước.
+
+
 Baseline M3a: c0283f7. Chi tiết profile/schema/policy: [FLASHCARD-SCHEDULING.md](FLASHCARD-SCHEDULING.md). Các ranh giới reader/PDF/content dưới đây tiếp tục được giữ; phần storage/backup được nâng như sau.
 
 - application/review.ts: model domain, clock, queue/daily allowance và rating semantics; review-validation.ts: runtime validation, liên kết audit/undo và backup conflict.
