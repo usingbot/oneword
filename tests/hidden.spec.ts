@@ -17,7 +17,7 @@ const test = base.extend<{ nativePage: Page }>({
     try {
       const endpoint = await new Promise<string>((resolve, reject) => {
         let output = ''
-        const timer = setTimeout(() => reject(new Error('[NATIVE_ENVIRONMENT_UNSUPPORTED] Headed Chromium did not expose CDP within 15s. Check DISPLAY/WSLg.')), 15_000)
+        const timer = setTimeout(() => reject(new Error('[NATIVE_ENVIRONMENT_UNSUPPORTED] Headed Chromium did not expose CDP within 30s. Check DISPLAY/WSLg.')), 30_000)
         child.once('error', error => { clearTimeout(timer); reject(error) })
         child.once('exit', code => { clearTimeout(timer); reject(new Error(`Native Chromium exited before connection: ${code}`)) })
         child.stderr.on('data', data => {
@@ -41,6 +41,10 @@ const test = base.extend<{ nativePage: Page }>({
     }
   },
 })
+
+// A fresh headed profile plus real hidden/visible waits can exceed the default
+// 30s under WSL filesystem load. Keep all state/timing assertions unchanged.
+test.setTimeout(60_000)
 
 interface Observation {
   at: number

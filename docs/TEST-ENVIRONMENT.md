@@ -1,4 +1,36 @@
-# Môi trường kiểm thử M1a
+# Môi trường kiểm thử M1a / M1b
+
+## M1b — kiểm chứng hiện tại, 16/09/2026
+
+Baseline trước sửa: `f57c872`, branch main, working tree sạch. Không commit M1b. Các phần M1a bên dưới là lịch sử đã nghiệm thu, không phải giới hạn storage của bản M1b.
+
+Dependency mới đã cài bằng lệnh thực:
+
+```powershell
+npm view dexie@4.4.6 version engines dependencies --json
+npm view fake-indexeddb@6.2.5 version engines --json
+npm install --save-exact dexie@4.4.6 --ignore-scripts
+npm install --save-dev --save-exact fake-indexeddb@6.2.5 --ignore-scripts
+```
+
+Windows: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, `npm audit` đều PASS ở lượt cuối. Unit/integration: **46 tests / 5 files**; npm audit báo **0 vulnerabilities**. Build JS 349.92 kB (gzip 111.45 kB), CSS 11.94 kB (gzip 3.60 kB), HTML 0.91 kB (gzip 0.53 kB). Không coi đây là benchmark thư viện lớn.
+
+Browser chạy trên production dist bằng lệnh WSL ở mục Chạy lại bên dưới. Lượt kiểm riêng `wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh --project=chromium tests/persistence.spec.ts` đạt **8/8**. Lượt cuối `wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh` đạt **22/22, 0 fail, 0 skip**, exit 0, 2.6 phút; ca native hidden đạt trong 40.4s. Typecheck/lint đã chạy lại sau thay đổi harness, đều exit 0. `git diff --check` sạch. M1b đã có bằng chứng hoàn thành phạm vi; chưa commit/push/deploy.
+
+Bằng chứng M1b trong HTML report:
+
+- `reload-resume`: snapshot IndexedDB thật trước/sau reload, từ/chunk trước/sau và settings. Có ca riêng reload khi đang playing, phục hồi checkpoint và không autoplay.
+- `backup-restore-privacy`: export download JSON → clear IndexedDB của origin thử bằng CDP → parse/preview (DB vẫn rỗng) → confirm → restore. Original, revision, position nhóm 3 tại `từ3 từ4 từ5`, WPM 420, glow tắt, font 60 và draft đều được kiểm. Reload rồi undo draft/undo revision về đúng original.
+- `errors: []`, `unexpectedRequests: []` trong flow backup/restore; theo dõi pageerror, console error và mọi request ngoài origin hoặc khác GET. Test privacy M1a cập nhật để chấp nhận duy nhất database local oneword-reader; localStorage/sessionStorage vẫn rỗng. Không upload/analytics.
+- Malformed JSON, future backup version, references sai, conflict IDs bị reject và không đổi snapshot DB. Backup trùng được gộp no-op.
+- Real IndexedDB rollback: inject QuotaExceededError vào lần put meta cuối để kiểm transaction rollback cả document mới; không giả vờ đã làm đầy ổ đĩa thực. Unit integration dùng fake-indexeddb kiểm cùng adapter.
+- IndexedDB unavailable: session vẫn đọc được và download backup, không báo đã lưu. Hai tab: writer cũ bị chặn, nội dung chưa lưu vẫn xuất được, writer mới giữ nguyên sau reload.
+
+Ảnh đã mở kiểm: artifacts/m1b-reload.png, artifacts/m1b-restore-preview.png, artifacts/m1b-storage-error.png và mobile.png. Report: playwright-report/index.html. Tất cả chỉ dùng text thử tổng hợp, bị Git ignore.
+
+Các lỗi phát hiện/sửa trong chặng: queue có thể bỏ sót immediate update đúng lúc flush promise đang settle (đã có regression); Dexie có thể mở DB version mới hơn tương thích (adapter kiểm native version trong mỗi transaction); test context M1a chỉ install clock mà chưa pause clock nên từ có thể tiến giữa hai click (đã cố định clock và giữ nguyên assertion). Một lượt browser full bị timeout khởi tạo CDP 15s; lượt native riêng tiếp theo đã tới bước resume nhưng hết tổng budget 30s. Harness native nay cho startup 30s và tổng 60s, giữ mọi assertion hidden/trusted/pause/resume và thời gian chờ thực 4500/2200ms; không retry/skip/xfail.
+
+Giới hạn: kiểm Chromium/WSLg, chưa thiết bị di động thật/Safari/Firefox persistence. Không kiểm mất điện thật, quota disk thật hoặc thư viện sát cap 32 MiB. Checkpoint/lifecycle là best-effort; browser có thể xóa kho. M1b không thêm PWA/service worker. Migration foundation v1 và reject future version đã test, chưa có migration v1→v2 vì chưa có schema v2.
 
 ## Windows host
 

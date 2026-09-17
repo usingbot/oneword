@@ -1,8 +1,8 @@
 # OneWord
 
-Trình đọc TXT/dán văn bản theo nhịp RSVP. Chặng hiện tại: **M1a**, dữ liệu chỉ tồn tại trong bộ nhớ của trang. Tải lại/đóng trang làm mất nội dung. Chưa có lưu tự động, backup hoặc restore.
+Trình đọc TXT/dán văn bản theo nhịp RSVP. Chặng hiện tại: **M1b**, lưu tài liệu/bản sửa/vị trí/thiết lập bằng IndexedDB trên trình duyệt và có Personal Backup JSON.
 
-Trạng thái kiểm chứng: typecheck/lint/build, 16 unit tests và 14 browser tests đạt, bao gồm native hidden → pause → visible không chạy bù → tiếp tục thủ công. **Gate còn thiếu của M1a đã đóng; chưa bắt đầu M1b.** Chi tiết và giới hạn trong [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md).
+M1a đã được chấp nhận tại baseline `f57c872`. Kiểm chứng M1b và giới hạn trong [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md).
 
 ## Chạy local
 
@@ -30,6 +30,12 @@ npm run preview
 
 Chuyển tab/cửa sổ tạm dừng; trở lại cần chủ động tiếp tục. Đổi tốc độ/cách chia lượt cũng tạm dừng. Áp dụng sửa/undo đặt vị trí về đầu và có thông báo. Không có tự nối/xóa dấu gạch.
 
+Chọn tài liệu đã lưu trong thanh dữ liệu hoặc **Tạo văn bản mới**. Reload mở lại tài liệu/draft và vị trí đã lưu, không tự phát. Checkpoint gom khoảng 1 giây, flush khi dừng; chờ **Đã lưu trên thiết bị** trước khi đóng. Khi báo lỗi, giữ trang mở và xuất backup của session.
+
+**Xuất sao lưu** tải JSON tại máy. **Khôi phục sao lưu** kiểm file, cho xem số tài liệu mới/trùng rồi mới xác nhận ghi atomic. Restore chỉ gộp; cùng ID khác nội dung bị chặn toàn bộ. Dữ liệu có sẵn không bị xóa. Giới hạn: 32 MiB/backup, 2 MiB/text, 100 documents, 1.000 revisions/document.
+
+IndexedDB thuộc origin/trình duyệt này; đổi port dev/preview là kho khác. Trình duyệt có thể dọn dữ liệu. Giữ backup JSON ở nơi riêng tư; file không mã hóa. Đóng cưỡng bức có thể mất phần sau checkpoint cuối. Chưa có PWA/offline app shell.
+
 ## Kiểm tra
 
 ```powershell
@@ -49,7 +55,7 @@ Script dùng Node Linux portable trong `.tools` nếu có, nếu không dùng No
 
 ## Phạm vi
 
-M1a không có PDF/OCR, FSRS/flashcard/quiz, Study Pack, IndexedDB, PWA, tài khoản, backend, AI API, telemetry hoặc cloud sync. Không có nội dung người dùng gửi lên server. Không có media ngoài hay font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ.
+M1b không có PDF/OCR, FSRS/flashcard/quiz, Study Pack, PWA, tài khoản, backend, AI API, telemetry hoặc cloud sync. Không có nội dung người dùng gửi lên server. Không có media ngoài hay font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ.
 
 Giấy phép dự án chưa được chọn. Không có LICENSE; MIT chưa được duyệt, AGPL-3.0 đang được cân nhắc. Không commit/push/deploy tự động.
 

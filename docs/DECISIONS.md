@@ -15,3 +15,11 @@ Nguồn: nội dung phê duyệt M0/M1 gửi ngày 16/09/2026. Chỉ ghi những
 - Giữ nguyên planning files và skills. Được tạo/cập nhật README và ARCHITECTURE/DATA-CONTRACTS/DECISIONS/TEST-ENVIRONMENT.
 - Không tạo LICENSE. MIT chưa được duyệt; AGPL-3.0 đang được xem xét riêng.
 - Không commit, push, deploy hoặc truy cập production. Những việc đó cần yêu cầu riêng.
+
+## Phê duyệt M1b — 16/09/2026
+
+- M1a đã được chấp nhận, baseline commit riêng theo yêu cầu: `f57c872`.
+- Lượt này triển khai M1b: IndexedDB, document/revisions/position/preferences, backup export/restore, runtime validation và failure handling.
+- Dexie được duyệt, chọn 4.4.6. fake-indexeddb 6.2.5 dùng trong test theo phạm vi yêu cầu. Không thêm Ajv vì format v1 có validator runtime cục bộ.
+- Không commit M1b trước review và phê duyệt riêng; không push/deploy hoặc bắt đầu PDF/flashcard/FSRS/quiz/Study Pack/PWA/backend/cloud.
+- Quyết định triển khai trong phạm vi được giao: restore gộp, bản trùng giữ position local, xung đột ID chặn toàn bộ; không replace/delete. Schema/giới hạn thực tế ở DATA-CONTRACTS.md, không mở rộng phạm vi chặng tiếp theo.

@@ -1,35 +1,39 @@
-# Kiến trúc M1a
+# Kiến trúc M1b
 
-Đây là mô tả triển khai trong phạm vi đã duyệt, không mở rộng quyền sang M1b.
+Baseline M1a: f57c872. M1b thêm persistence và Personal Backup; không đổi domain RSVP hoặc triển khai chặng tiếp theo.
 
 ## Ranh giới
 
-- `src/ui/App.tsx`: UI, draft, focus/fullscreen, visibility/blur và keyboard adapters. Không tính lịch timing trong render.
-- `src/application/document.ts`: mở TXT, validate, tạo document, revision, undo. Tất cả trong memory.
-- `src/domain/reader.ts`: segmentation, duration, ReaderEngine độc lập React/DOM. UI subscribe qua useSyncExternalStore.
-- `scripts/serve-built.mjs`: server local chỉ phục vụ dist để test WSL, bind 127.0.0.1; không phải backend ứng dụng.
+- src/ui/App.tsx: UI, lựa chọn tài liệu, adapter keyboard/fullscreen/visibility, hydrate state và gửi snapshot cho application. Không có lệnh IndexedDB/transaction trong React. UI tạo adapter tại điểm lắp ghép.
+- src/application/document.ts: tạo document/revision bất biến, TXT UTF-8, sửa/undo; cấp UUID và timestamp.
+- src/application/library.ts: interface ReaderStorage, dữ liệu thư viện, kiểm resume và coordinator Persistence. Application không phụ thuộc kiểu Dexie.
+- src/application/backup.ts: validator runtime, JSON envelope v1, tham chiếu và merge policy; không tải schema hoặc gọi API.
+- src/domain/reader.ts: segmentation/duration/ReaderEngine độc lập React/storage; giữ timing, hidden pause và không chạy bù của M1a.
+- src/storage/indexed-db.ts: adapter Dexie duy nhất, transaction xuyên bốn stores, kiểm generation và immutability.
+- scripts/serve-built.mjs: server dist loopback phục vụ test, không phải backend dữ liệu.
 
-State của engine: empty → ready → playing ↔ paused → completed. Loading/error/editing do use case/UI quản lý. Document mới, settings mới hoặc edit/undo hủy timer trước đó. Một callback trễ chỉ tiến một lượt; không có vòng lặp chạy bù theo wall clock.
+## Hydration và checkpoint
 
-## Quy tắc triển khai
+UI chờ đọc kho trước khi cho nhập. Phục hồi tài liệu đang mở, draft, preferences và position; engine luôn dừng, không tự play hoặc mở fullscreen. Position là offset UTF-16 đầu chunk + revision ID + settings; không persist mảng chunk có thể tính lại. Mismatch về đầu và báo rõ.
 
-- Dùng whitespace units; từ ghép/dấu trừ/Unicode giữ nguyên. Sentence mode dùng Intl.Segmenter('vi', sentence); không coi đây là phân tích ngôn ngữ hoàn hảo.
-- Mỗi chunk giữ start/end offset trên text revision và units.
-- Cơ bản: units × 60000 / WPM. Khi bật nghỉ dấu câu: cuối . ! ? … cộng một nhịp; cuối , ; : cộng nửa nhịp; xử lý dấu ngoặc/nháy đóng.
-- Tốc độ 30–1200 WPM; custom count 1–100. Đây là giới hạn UI của M1a, không phải cam kết hiệu quả học.
-- Pause giữ remaining duration bằng performance.now(); resume cần thao tác người dùng. visibilitychange(hidden) và window blur đều pause.
-- Đổi chunk/speed dừng playback, tìm chunk chứa offset cũ. Edit/undo reset vị trí có thông báo để tránh bookmark sai revision.
-- Fullscreen qua user activation; API từ chối thì focus view CSS. Nút thoát luôn có; toolbar tự ẩn khi đọc và hiện khi tương tác/focus bàn phím. Chữ dài wrap, vùng chữ có thể cuộn, không tự giảm cỡ chữ từng lượt. Không aria-live đọc dồn chữ.
-- Nội dung chỉ render dưới dạng text, không HTML. UTF-8 decoder reject dữ liệu sai/nhị phân; cap 2 MiB. Không cleanup tự động.
+Coordinator gom thay đổi trong cửa sổ khoảng 1 giây khi trang đang hoạt động, không reset timer theo từng tick. Pause, thay tài liệu/revision yêu cầu flush ngay; blur/hidden/pagehide cũng yêu cầu flush best-effort. Không dựa riêng vào beforeunload. Hàng đợi tuần tự xử lý cả update đến khi promise flush trước vừa kết thúc.
 
-## Dependency
+Checkpoint ghi position/preferences/meta; không ghi lại document có reference không đổi. Nội dung/revisions chỉ ghi khi sửa hoặc đổi con trỏ undo. Validation/serialization vẫn xử lý snapshot thư viện trước ghi; chưa tối ưu thư viện sát 32 MiB.
 
-Runtime chỉ React + React DOM. Dev: TypeScript, Vite/plugin-react, Vitest, ESLint/typescript-eslint, typings và Playwright. Version trực tiếp pin exact trong package.json, graph trong package-lock.json. Chưa cài Dexie, Ajv, PDF.js, ts-fsrs hoặc fake-indexeddb.
+Chỉ báo đã lưu sau transaction thành công và hàng đợi hết. Lỗi quota/transaction/concurrent writer giữ memory, dừng tự retry và cho export/retry. Lỗi đọc ban đầu không cho ghi lên kho chưa đọc: backup session rồi reload. Không tự xóa database lỗi/future schema.
 
-Node portable và Chromium Linux trong `.tools` bị Git ignore. Không sửa Node Windows hoặc môi trường hệ thống để chạy app.
+Kill browser/mất điện không bảo đảm flush cuối. Có thể mất tiến độ/draft sau checkpoint gần nhất; browser throttle có thể làm trễ hơn 1 giây. Dừng và chờ đã lưu trước khi đóng là đường an toàn.
 
-CSP production giữ scripts self, không object hoặc remote font/media. Dev Vite bỏ meta CSP để dùng React refresh preamble; dev server vẫn loopback. Không có analytics, fetch text, remote image hoặc font CDN.
+## Transaction và multi-tab tối thiểu
 
-## Chưa triển khai
+Mọi writer kiểm meta.generation trong readwrite transaction, so với generation đã đọc; thành công tăng generation. Tab stale bị chặn, giữ memory để backup. Không tự merge edits hoặc refresh tab đang đọc; không thêm workflow BroadcastChannel hay conflict system FSRS.
 
-M1b: storage adapter, IndexedDB/revisions/bookmark/settings, backup/restore và failure handling. Hiện chưa có storage adapter giả hoặc schema DB. Không có service worker.
+Restore parse/validate/merge preview trước, xác nhận rồi flush session và ghi merged snapshot trong một transaction. Lỗi bước cuối rollback cả document/settings/position/meta. UI chỉ nhận restore sau commit. Không có replace/delete.
+
+## Dependency và privacy
+
+Runtime mới: Dexie 4.4.6, không dependency con. Dev mới: fake-indexeddb 6.2.5 chỉ cho integration tests Node; browser tests dùng IndexedDB thật. Schema nhỏ v1 dùng validator runtime rõ ràng nên không thêm Ajv. Version trực tiếp pin exact.
+
+Nội dung render như text; original giữ nguyên Unicode/dấu gạch. CSP production giới hạn script/assets nội bộ. Backup qua Blob URL; restore đọc File tại máy. Không upload/fetch user text, analytics, telemetry, remote DB hoặc API key. IndexedDB theo origin, không sync giữa browser/máy. Backup JSON không mã hóa. Không service worker hoặc offline app-shell guarantee.
+
+Nguồn API: [Dexie transaction](https://dexie.org/docs/Dexie/Dexie.transaction()), [schema design](https://dexie.org/docs/Tutorial/Design), [fake-indexeddb](https://github.com/dumbmatter/fakeIndexedDB).

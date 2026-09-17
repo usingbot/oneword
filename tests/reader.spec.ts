@@ -105,7 +105,9 @@ test('fullscreen rejection falls back to focus view; Escape exits', async ({ pag
 })
 
 test('context pauses playback and offers accessible static text', async ({ page }) => {
-  await page.clock.install()
+  const start = new Date('2026-09-16T12:00:00Z')
+  await page.clock.install({ time: start })
+  await page.clock.pauseAt(start)
   await load(page)
   await page.getByRole('button', { name: 'Đọc tiếp', exact: true }).click()
   await page.getByRole('button', { name: 'Ngữ cảnh', exact: true }).click()
@@ -115,7 +117,7 @@ test('context pauses playback and offers accessible static text', async ({ page 
   await expect(page.getByRole('button', { name: 'Đóng ngữ cảnh' })).toBeFocused()
 })
 
-test('no text uploads, no storage writes, no runtime errors', async ({ page }) => {
+test('no text uploads, only local IndexedDB persistence, no runtime errors', async ({ page }) => {
   const failures: string[] = []
   const requests: string[] = []
   page.on('pageerror', (e) => failures.push(e.message))
@@ -124,7 +126,8 @@ test('no text uploads, no storage writes, no runtime errors', async ({ page }) =
   await load(page, '<script>alert("hello")</script> PRIVATE_LOCAL_TEXT')
   await page.getByRole('button', { name: 'Tiến một lượt' }).click()
   await expect(page.getByTestId('current-chunk')).toHaveText('PRIVATE_LOCAL_TEXT')
-  expect(await page.evaluate(async () => ({ local: localStorage.length, session: sessionStorage.length, databases: (await indexedDB.databases()).length }))).toEqual({ local: 0, session: 0, databases: 0 })
+  await expect(page.getByTestId('save-status')).toHaveText('Đã lưu trên thiết bị')
+  expect(await page.evaluate(async () => ({ local: localStorage.length, session: sessionStorage.length, databases: (await indexedDB.databases()).map(d => d.name) }))).toEqual({ local: 0, session: 0, databases: ['oneword-reader'] })
   expect(requests).toEqual([])
   expect(failures).toEqual([])
 })
