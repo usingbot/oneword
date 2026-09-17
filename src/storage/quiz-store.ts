@@ -11,7 +11,8 @@ export class IndexedDbQuiz implements QuizGateway {
     if (this.db.backendDB().version !== 50) throw new Error('Unsupported database version')
     const record = await this.db.table<QuizRecord>('quiz').get('quiz'), generation = record?.generation ?? 0
     if (!Number.isSafeInteger(generation) || generation < 0) throw new Error('Invalid quiz generation')
-    return { activeAttemptId: validateActiveAttempt(record?.activeAttemptId ?? null, validateAttempts(record?.attempts ?? [])), generation, attempts: validateAttempts(record?.attempts ?? []), packs: validateStudyLibrary(await this.db.table('packs').toArray()) }
+    const attempts = validateAttempts(record?.attempts ?? [])
+    return { activeAttemptId: validateActiveAttempt(record?.activeAttemptId ?? null, attempts), generation, attempts, packs: validateStudyLibrary(await this.db.table('packs').toArray()) }
   }
   async read() { return this.db.transaction('r', this.db.tables, () => this.snapshot()) }
   async execute(command: QuizCommand) {

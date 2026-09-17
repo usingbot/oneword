@@ -25,3 +25,15 @@ textarea::placeholder{color:#68755e}
 .quiz-area fieldset { min-width: 0; margin-block: 1rem; }
 .quiz-area [role=dialog] { padding: 1rem; border: 2px solid currentColor; border-radius: .6rem; }
 .quiz-area li { margin-block: 1rem; overflow-wrap: anywhere; }
+
+/* M4a: preserve desktop layout; make narrow/touch and recovery controls usable. */
+.skip-link{position:fixed;left:12px;top:-100px;clip-path:inset(50%);z-index:200;background:#fff;color:#253e2a;padding:12px}.skip-link:focus{top:12px;clip-path:none}
+.offline-panel{margin:20px 0 28px;padding:16px;border:1px solid #b6c4ae;border-radius:12px;font-size:14px;color:#334b36;overflow-wrap:anywhere}
+.offline-panel button{min-height:44px;margin:8px 8px 4px 0;padding:10px 14px;border:1px solid #718366;border-radius:8px;background:#fff;color:#253e2a}.offline-panel summary{min-height:44px;padding-block:8px}
+.update-notice{border-left:4px solid #35553e;padding-left:16px}.restore-dialog{max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;max-width:min(540px,100%)}
+.quiz-choice{min-height:48px}.study-area select,.library-panel select,.chunk-options button,.file-button{min-height:44px}
+.file-button:focus-within{outline:3px solid #426b37;outline-offset:3px}select:focus-visible{outline:3px solid #426b37;outline-offset:3px}
+.reader-stage.is-focus,.reader-stage:fullscreen{padding-top:max(70px,env(safe-area-inset-top));padding-bottom:max(100px,calc(env(safe-area-inset-bottom) + 90px))}
+.is-focus .stage-toolbar{bottom:max(20px,env(safe-area-inset-bottom));flex-wrap:wrap}.exit-focus{top:max(16px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right))}
+.study-area{padding-bottom:env(safe-area-inset-bottom)}
+@media(max-width:600px){.restore-overlay{padding:12px}.restore-dialog{padding:18px}.editor-panel input,.editor-panel textarea,.library-panel select,.pdf-dialog textarea{font-size:16px}.stage-toolbar{gap:6px;flex-wrap:wrap}.stage-toolbar button{flex-shrink:0}.app-shell{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}.review-ratings button{min-height:72px}.pdf-dialog{max-height:calc(100dvh - 24px)}}

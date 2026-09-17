@@ -1,16 +1,18 @@
 import { IndexedDbQuiz } from '../storage/quiz-store'
-import { IndexedDbReview } from '../storage/review-store'
+import type { ReviewGateway } from '../application/review'
+import type { QuizGateway } from '../application/quiz'
 import { pruneReview } from '../application/review'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createDocument, createPdfDocument, currentText, readTextFile, revise, undo, validateText, type TextDocument } from '../application/document'
 import { defaultSettings, ReaderEngine, type ReaderSettings } from '../domain/reader'
 import { emptyLibrary, Persistence, resumePosition, type LibraryData } from '../application/library'
 import { exportBackup, MAX_BACKUP_BYTES, mergeBackup, parseBackup, type BackupEnvelope } from '../application/backup'
 import { IndexedDbStorage } from '../storage/indexed-db'
-import { PdfImport } from './PdfImport'
+import { OfflinePanel } from './OfflinePanel'
 import { warningLabels } from '../application/pdf-text'
-import { StudyArea } from './StudyArea'
 import { validateStudyLibrary, type StudyPack } from '../application/study-pack'
+const StudyArea = lazy(() => import('./StudyArea').then(m => ({ default: m.StudyArea })))
+const PdfImport = lazy(() => import('./PdfImport').then(m => ({ default: m.PdfImport })))
 
 const sample = 'Đọc chậm lại một chút.\n\nĐôi khi, điều ta cần không phải là thêm thông tin, mà là một khoảng lặng để chú ý. Hãy chọn nhịp đọc phù hợp, tạm dừng khi cần và quay lại với ngữ cảnh.\n\nBạn là người quyết định tốc độ của mình.'
 const statusLabel = { empty: 'Sẵn sàng khi bạn sẵn sàng', ready: 'Sẵn sàng đọc', playing: 'Đang đọc', paused: 'Đã tạm dừng', completed: 'Đã đọc hết' }
@@ -37,17 +39,26 @@ export function App() {
   const [packs, setPacks] = useState<readonly StudyPack[]>([])
   const [study, setStudy] = useState(false)
   const [studyDirty, setStudyDirty] = useState(false)
+  const [studyWrites, setStudyWrites] = useState(0)
   const studyMutation = useRef(false)
   const [ready, setReady] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'saving' | 'saved' | 'error'>('saving')
   const [saveError, setSaveError] = useState('')
   const [backupPreview, setBackupPreview] = useState<{ backup: BackupEnvelope; added: number; duplicates: number; packsAdded: number; packsDuplicates: number } | null>(null)
   const [restoring, setRestoring] = useState(false)
+  const [updateBusy, setUpdateBusy] = useState(false)
+  const [backupReading, setBackupReading] = useState(false)
   const latest = useRef<LibraryData>(emptyLibrary())
   const previousCheckpoint = useRef({ document: doc, status: reader.status })
   const [storage] = useState(() => new IndexedDbStorage())
-  const [quizGateway] = useState(() => new IndexedDbQuiz(storage.db))
-  const [reviewGateway] = useState(() => new IndexedDbReview(storage.db))
+  const [quizGateway] = useState<QuizGateway>(() => {
+    const gateway = new IndexedDbQuiz(storage.db)
+    return { read: () => gateway.read(), execute: command => persistStudy(() => gateway.execute(command)) }
+  })
+  const [reviewGateway] = useState<ReviewGateway>(() => ({
+    read: async () => new (await import('../storage/review-store')).IndexedDbReview(storage.db).read(),
+    execute: command => persistStudy(async () => new (await import('../storage/review-store')).IndexedDbReview(storage.db).execute(command)),
+  }))
   const [persistence] = useState(() => new Persistence(storage, (status, message = '') => { setSaveStatus(status); setSaveError(message) }))
   const stage = useRef<HTMLElement>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
@@ -62,8 +73,14 @@ export function App() {
   const backupReadId = useRef(0)
   const text = doc ? currentText(doc) : ''
   const dirty = doc ? draft !== text : draft.length > 0
-  const available = ready && reader.chunks.length > 0 && !dirty && !loading && !backupPreview && !pdfFile && !study
+  const available = ready && reader.chunks.length > 0 && !dirty && !loading && !backupPreview && !pdfFile && !study && !updateBusy
   const chunk = reader.chunks[reader.index]
+
+  async function persistStudy<T>(write: () => Promise<T>) {
+    setStudyWrites(count => count + 1)
+    try { return await write() }
+    finally { setStudyWrites(count => count - 1) }
+  }
 
   useEffect(() => {
     if (wasPdf.current && !pdfFile) pdfInput.current?.focus()
@@ -76,6 +93,7 @@ export function App() {
   }, [backupPreview])
 
   function showLibrary(data: LibraryData) {
+    const started = performance.now()
     latest.current = data
     setDocuments(data.documents)
     setPacks(data.packs)
@@ -87,6 +105,7 @@ export function App() {
     const nextSettings = position?.settings ?? data.preferences.reader
     setSettings(nextSettings)
     engine.load(active ? currentText(active) : '', nextSettings, resume.offset)
+    performance.clearMeasures('oneword-reader-open'); performance.measure('oneword-reader-open', { start: started, end: performance.now() })
     if (resume.warning) setNotice(resume.warning)
   }
 
@@ -152,6 +171,7 @@ export function App() {
   async function previewBackup(file?: File) {
     if (!file) return
     const request = ++backupReadId.current
+    setBackupReading(true)
     engine.pause(); setError('')
     try {
       if (file.size > MAX_BACKUP_BYTES) throw new Error('Sao lưu vượt giới hạn 32 MiB.')
@@ -161,6 +181,7 @@ export function App() {
       const result = mergeBackup({ ...latest.current, review: (await reviewGateway.read()).data, quizAttempts: currentQuiz.attempts, quizActiveAttemptId: currentQuiz.activeAttemptId }, backup.data)
       setBackupPreview({ backup, added: result.added, duplicates: result.duplicates, packsAdded: result.packsAdded, packsDuplicates: result.packsDuplicates })
     } catch (e) { if (request === backupReadId.current) setError((e as Error).message) }
+    finally { if (request === backupReadId.current) setBackupReading(false) }
   }
 
   async function confirmRestore() {
@@ -314,14 +335,15 @@ export function App() {
   }
 
   return <div className="app-shell">
-    <header className="site-header" inert={focus || !!backupPreview || !!pdfFile}>
+    <a className="skip-link" href={study ? '#study' : '#source-text'}>Đến nội dung chính</a>
+    <header className="site-header" inert={focus || !!backupPreview || !!pdfFile || updateBusy}>
       <a className="wordmark" href="#main"><span className="brand-mark" aria-hidden="true">o<span /></span>oneword<span className="brand-period">.</span></a>
       <span className="header-note"><span className="status-dot" /> Một khoảng riêng để đọc</span>
-      <nav className="area-navigation" aria-label="Khu vực"><button aria-pressed={!study} disabled={!ready || restoring || loading} onClick={() => { if (studyDirty && !window.confirm('Rời vùng Học sẽ bỏ phần đang nhập chưa lưu. Tiếp tục?')) return; setStudy(false); setStudyDirty(false) }}>Đọc</button><button aria-pressed={study} disabled={!ready || restoring || loading} onClick={() => { engine.pause(); setStudy(true) }}>Học / Flashcards</button></nav>
+      <nav className="area-navigation" aria-label="Khu vực"><button aria-pressed={!study} disabled={!ready || restoring || loading || studyWrites > 0} onClick={() => { if (studyDirty && !window.confirm('Rời vùng Học sẽ bỏ phần đang nhập chưa lưu. Tiếp tục?')) return; setStudy(false); setStudyDirty(false) }}>Đọc</button><button aria-pressed={study} disabled={!ready || restoring || loading || studyWrites > 0} onClick={() => { engine.pause(); setStudy(true) }}>Học / Flashcards</button></nav>
     </header>
 
     {!ready && <p role="status">Đang mở dữ liệu trên thiết bị…</p>}
-    <main id="main" hidden={study} inert={!ready || !!backupPreview || !!pdfFile || study || restoring}>
+    <main id="main" hidden={study} inert={!ready || !!backupPreview || !!pdfFile || study || restoring || updateBusy}>
       <div className="intro" inert={focus}>
         <p className="eyebrow">ĐỌC TẬP TRUNG</p>
         <h1>Từng nhịp chữ.<br /><span>Theo nhịp của bạn.</span></h1>
@@ -399,13 +421,14 @@ export function App() {
       </div>
       <div className="messages" inert={focus}>{error && <p className="error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{dirty && doc && <p>Văn bản có thay đổi. Áp dụng hoặc hoàn tác trước khi đọc.</p>}</div>
     </main>
-    {study && ready && <StudyArea quizGateway={quizGateway} reviewGateway={reviewGateway} packs={packs} onChange={saveStudyPacks} onDirty={setStudyDirty} />}
-    <footer inert={focus || !!backupPreview || !!pdfFile}><span>Văn bản ở trên thiết bị của bạn. Không gửi lên server.</span><span>ONEWORD / M3c</span></footer>
-    {pdfFile && <PdfImport file={pdfFile} onCancel={() => { setPdfFile(null); setNotice('Đã hủy nhập PDF. Không tạo tài liệu; phiên trước được giữ nguyên.') }} onAccept={(result, working) => {
+    {study && ready && <Suspense fallback={<p role="status">Đang mở nội dung học…</p>}><StudyArea quizGateway={quizGateway} reviewGateway={reviewGateway} packs={packs} onChange={saveStudyPacks} onDirty={setStudyDirty} /></Suspense>}
+    <div inert={focus || !!backupPreview || !!pdfFile}><OfflinePanel onBusyChange={setUpdateBusy} blocked={!ready || study || studyWrites > 0 || dirty || loading || restoring || backupReading || !!backupPreview || !!pdfFile || reader.status === 'playing' || focus || saveStatus === 'error'} prepare={() => persistence.flush()} /></div>
+    <footer inert={focus || !!backupPreview || !!pdfFile}><span>Văn bản ở trên thiết bị của bạn. Không gửi lên server.</span><span>ONEWORD / M4a</span></footer>
+    {pdfFile && <Suspense fallback={<p role="status">Đang mở trình đọc PDF…</p>}><PdfImport file={pdfFile} onCancel={() => { setPdfFile(null); setNotice('Đã hủy nhập PDF. Không tạo tài liệu; phiên trước được giữ nguyên.') }} onAccept={(result, working) => {
       const next = createPdfDocument(result, pdfFile.name, working)
       publishDocument(next); setDraft(working); setError(''); setContext(false); engine.load(working, settings); setPdfFile(null)
       setNotice('Đã tạo tài liệu từ PDF. Bản trích xuất gốc được giữ riêng. Bấm đọc khi sẵn sàng; kiểm tra trạng thái lưu trên thiết bị.')
-    }} />}
+    }} /></Suspense>}
     {backupPreview && <div className="restore-overlay"><section role="dialog" aria-modal="true" aria-label="Xem trước khôi phục" className="restore-dialog" onKeyDown={e => { if (e.key === 'Escape' && !restoring) setBackupPreview(null); if (e.key === 'Tab') { const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]; const next = buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length]; e.preventDefault(); next?.focus() } }}><h2>Khôi phục sao lưu</h2><p>{backupPreview.added} tài liệu mới · {backupPreview.duplicates} tài liệu trùng hoàn toàn.</p><p>{backupPreview.packsAdded} pack mới · {backupPreview.packsDuplicates} pack trùng hoàn toàn.</p><p>Lượt quiz trong tệp: {backupPreview.backup.data.quizAttempts.length}. Lịch ôn trong tệp: {backupPreview.backup.data.review.schedules.length} lịch · {backupPreview.backup.data.review.events.length} lượt · {backupPreview.backup.data.review.undos.length} hoàn tác. Lịch sử cá nhân khác nhau sẽ bị chặn.</p><p>Gộp và giữ mọi tài liệu có sẵn. Tài liệu trùng giữ vị trí đọc hiện tại. Thiết lập, tài liệu đang mở và bản nháp của sao lưu chỉ được nhận khi thư viện hiện tại rỗng.</p><p>Không có tài liệu nào bị xóa hoặc ghi đè.</p><button autoFocus disabled={restoring} onClick={() => void confirmRestore()}>Xác nhận khôi phục</button><button disabled={restoring} onClick={() => setBackupPreview(null)}>Hủy khôi phục</button></section></div>}
     {focus && notice.startsWith('Trình duyệt') && <span className="sr-only" role="status">{notice}</span>}
   </div>

@@ -1,8 +1,8 @@
 # OneWord
 
-Trình đọc TXT/PDF/dán văn bản theo nhịp RSVP. Chặng hiện tại: **M3c**, thêm Quiz Luyện tập/Kiểm tra local, bên cạnh ôn Anki-style bằng FSRS; lưu thư viện đọc/học bằng IndexedDB, trao đổi nội dung bằng Study Pack JSON và sao lưu toàn bộ bằng Personal Backup.
+Trình đọc TXT/PDF/dán văn bản theo nhịp RSVP, ôn Anki-style bằng FSRS và Quiz local. Chặng hiện tại: **M4a**, bổ sung PWA/ngoại tuyến, cập nhật an toàn, kiểm tra migration, mobile, accessibility và hiệu năng. Thư viện nằm trong IndexedDB; Study Pack chia sẻ nội dung, Personal Backup giữ cả lịch sử cá nhân.
 
-M1a, M1b, M2 và M3a đã được chấp nhận tại `f57c872`, `3078e62`, `da305cc` và `c0283f7`. Kiểm chứng và giới hạn trong [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md).
+M1a–M3c đã được chấp nhận; M3b `6a4feda`, M3c `12899e7`, sau đó `198e771` chỉ chuẩn hóa line endings. Kiểm chứng và giới hạn trong [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md).
 
 ## Chạy local
 
@@ -34,13 +34,19 @@ Chọn tài liệu đã lưu trong thanh dữ liệu hoặc **Tạo văn bản m
 
 **Xuất sao lưu** tải JSON tại máy. **Khôi phục sao lưu** kiểm file, cho xem số tài liệu mới/trùng rồi mới xác nhận ghi atomic. Restore chỉ gộp; cùng ID khác nội dung bị chặn toàn bộ. Dữ liệu có sẵn không bị xóa. Giới hạn: 32 MiB/backup, 2 MiB/text, 100 documents, 1.000 revisions/document.
 
-IndexedDB thuộc origin/trình duyệt này; đổi port dev/preview là kho khác. Trình duyệt có thể dọn dữ liệu. Giữ backup JSON ở nơi riêng tư; file không mã hóa. Đóng cưỡng bức có thể mất phần sau checkpoint cuối. Chưa có PWA/offline app shell.
+IndexedDB thuộc origin/trình duyệt này; đổi port dev/preview là kho khác. Trình duyệt có thể dọn dữ liệu. Giữ backup JSON ở nơi riêng tư; file không mã hóa. Đóng cưỡng bức có thể mất phần sau checkpoint cuối. [Hướng dẫn phục hồi](docs/RECOVERY.md).
+
+## Cài đặt và ngoại tuyến
+
+Dùng bản production trên HTTPS hoặc localhost; `npm run dev` không đăng ký worker. Chờ **Ứng dụng đã sẵn sàng ngoại tuyến** trong lần mở có mạng, rồi dùng menu cài ứng dụng của trình duyệt nếu được hỗ trợ. Reader, PDF đã trích chữ, flashcards, FSRS, Quiz và Personal Backup dùng được sau khi đóng/mở trang không có mạng. Ảnh HTTPS bên ngoài cần mạng nếu chưa có trong cache HTTP của trình duyệt; OneWord không tự tải/cache ảnh đó.
+
+Khi thấy **OneWord có bản cập nhật mới**, hoàn tất chỉnh sửa/import, dừng đọc, về **Đọc**, đóng các tab OneWord khác rồi chọn **Cập nhật an toàn**. App flush dữ liệu trước reload; không tự tải lại phiên đang học. **Ưu tiên giữ dữ liệu trên thiết bị** là tùy chọn, không thay thế backup hoặc bảo đảm dữ liệu vĩnh viễn. [Ma trận và chiến lược cập nhật](docs/OFFLINE.md).
 
 ## Mở PDF
 
 Chọn **Mở PDF** → xem tiến độ trang X/N → đối chiếu cảnh báo và bản trích xuất gốc theo trang → sửa văn bản → **Lưu và tiếp tục đến trình đọc**. Trình đọc không tự phát. Hãy áp dụng/hoàn tác văn bản đang nhập trước khi mở PDF. **Hủy nhập PDF** hoặc Escape bỏ toàn bộ preview, giữ nguyên tài liệu trước đó. Preview chưa lưu; đóng/reload có cảnh báo mất preview.
 
-PDF.js **6.3.289** đọc File bằng worker local, theo từng trang/stream chữ; không render trang ra canvas. PDF, chữ và metadata không upload. Worker, CMaps và font chuẩn được phục vụ như tài nguyên tĩnh cùng origin, chỉ tải khi cần; không CDN. Không chạy PDF JavaScript, attachment hoặc XFA.
+PDF.js **6.3.289** đọc File bằng worker local, theo từng trang/stream chữ; không render trang ra canvas. PDF, chữ và metadata không upload. PDF.js vẫn import/thực thi khi mở PDF; PWA chuẩn bị trước các byte module/worker/CMaps/font tĩnh cùng origin để dùng ngoại tuyến. Không CDN, không chạy PDF JavaScript, attachment hoặc XFA.
 
 Giữ raw text và ranh giới/cảnh báo từng trang bất biến; bản làm việc chỉ gom tab/space/NBSP, chuẩn hóa CRLF, bỏ khoảng trắng đầu/cuối dòng và gom dòng trống. Giữ Unicode, xuống dòng đơn và mọi dấu gạch nối, kể cả `informa-\ntion`; người dùng có thể tự sửa. Có nút trở về bản chuẩn hóa hoặc dùng raw.
 
@@ -74,7 +80,7 @@ Thẻ đến hạn trước thẻ mới. Mặc định 20 thẻ mới/ngày toà
 
 **Hoàn tác lượt ôn** phục hồi lịch và allowance khi còn an toàn, giữ dấu lịch sử. **Bỏ qua trong phiên** không ghi rating, dùng khi thiếu ảnh thiết yếu. Thẻ đang learning có thể chưa đến hạn; bấm **Cập nhật hàng đợi** sau thời gian chờ. Sửa/chuyển deck giữ schedule; xóa card bỏ schedule live nhưng giữ audit và lượt mới đã dùng. Tab stale không được ghi đè: ứng dụng tải lại lịch và yêu cầu recall lại.
 
-Personal Backup hiện là **v5**, đọc v1/v2/v3/v4, giữ lịch ôn/events/undo/settings và quiz attempts; DB nâng lên **v5/native50**. Study Pack **v1/v2 chỉ nội dung**, không mang tiến độ cá nhân. Cần app đã tải để ôn offline; chưa có PWA cho cold start. Xem [chính sách và schema lịch ôn](docs/FLASHCARD-SCHEDULING.md) trước khi trao đổi backup giữa máy; các history khác nhau bị chặn, không tự merge.
+Personal Backup hiện là **v5**, đọc v1/v2/v3/v4, giữ lịch ôn/events/undo/settings và quiz attempts; DB **v5/native50**. Study Pack **v1/v2 chỉ nội dung**, không mang tiến độ cá nhân. Chờ chuẩn bị ngoại tuyến ở lần mở có mạng để cold start. Xem [chính sách và schema lịch ôn](docs/FLASHCARD-SCHEDULING.md) trước khi trao đổi backup giữa máy; các history khác nhau bị chặn, không tự merge.
 
 ## Kiểm tra
 
@@ -85,20 +91,23 @@ npm test
 npm run build
 npm audit
 git diff --check
+git diff HEAD --check
 ```
 
 Playwright chạy trên Ubuntu WSL được hỗ trợ, không chạy Windows 10 làm bằng chứng hỗ trợ chính thức:
 
 ```powershell
+npm run test:prepare-updates
 wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh
+wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh --config=playwright.firefox.config.ts
 ```
 
-Script dùng Node Linux portable trong `.tools` nếu có, nếu không dùng Node Linux trên PATH. Browser binaries phải được chuẩn bị trước; xem [môi trường kiểm thử](docs/TEST-ENVIRONMENT.md). Build lại trên Windows trước E2E. Các ca headed cần WSLg. Native visibility chạy Chromium với profile riêng và CDP `noDefaults: true`, kiểm trạng thái hidden thật trước khi kiểm reader. Ca mô phỏng handler chạy riêng, không thay bằng chứng native.
+Script dùng Node Linux portable trong `.tools` nếu có, nếu không dùng Node Linux trên PATH. Browser binaries phải được chuẩn bị trước; xem [môi trường kiểm thử](docs/TEST-ENVIRONMENT.md). Build và chuẩn bị lại hai production fixtures trên Windows sau mỗi thay đổi nguồn, trước E2E. Fixtures nằm trong `.tools`, không ship/deploy. Các ca headed cần WSLg. Native visibility chạy Chromium với profile riêng và CDP `noDefaults: true`, kiểm trạng thái hidden thật trước khi kiểm reader. Firefox là smoke suite riêng, không được hiểu là toàn bộ suite đã chạy trên Firefox.
 
 ## Phạm vi
 
-M3c chưa có OCR, PWA, tài khoản, backend, AI API, telemetry, cloud sync, AnkiWeb, .apkg, optimizer hoặc dashboard nâng cao. Nội dung đọc, lịch ôn và Study Pack không upload; chỉ ảnh HTTPS được yêu cầu khi người dùng chọn tải. Không có font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ.
+M4a chưa có OCR, tài khoản, backend, AI API, telemetry, cloud sync, AnkiWeb, .apkg, optimizer hoặc dashboard nâng cao. Nội dung đọc, lịch ôn và Study Pack không upload; chỉ ảnh HTTPS được yêu cầu khi người dùng chọn tải. Không có font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ và không phù hợp với mọi người; văn bản thường vẫn luôn truy cập được.
 
 Giấy phép dự án chưa được chọn. Không có LICENSE; MIT chưa được duyệt, AGPL-3.0 đang được cân nhắc. Không commit/push/deploy tự động.
 
-Tài liệu: [kiến trúc](docs/ARCHITECTURE.md), [dữ liệu](docs/DATA-CONTRACTS.md), [quyết định đã duyệt](docs/DECISIONS.md).
+Tài liệu: [kiến trúc](docs/ARCHITECTURE.md), [dữ liệu](docs/DATA-CONTRACTS.md), [quyết định đã duyệt](docs/DECISIONS.md), [accessibility](docs/ACCESSIBILITY.md), [hiệu năng](docs/PERFORMANCE.md).

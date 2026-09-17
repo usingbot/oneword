@@ -1,4 +1,14 @@
-# Hợp đồng dữ liệu M3b
+# Hợp đồng dữ liệu OneWord
+
+## M4a — bảo toàn hợp đồng hiện tại
+
+Không đổi schema: DB application/Dexie5, native50; Personal Backup5 đọc1–4; Study Pack1/2. Build ID/cache name là hash tài nguyên tĩnh và worker template, hoàn toàn độc lập schema. CacheStorage `oneword-shell-*` chứa app shell, icons, JS/CSS và tài nguyên PDF.js, không chứa document/PDF gốc/pack/card/schedule/event/attempt/backup/ảnh remote.
+
+Read/migration phải kiểm toàn graph trước commit: meta/generation, documents/revisions/positions, active document/draft, packs, review và quiz. Metadata hiện hữu mà thiếu personal aggregate là lỗi, không tự phục hồi bằng aggregate rỗng. Native version tương lai bị chặn trước ghi. Upgrade bị ngắt hoặc validation thất bại rollback transaction; không deleteDatabase/reset. Browser fixtures thật cho eras1–5 và các lỗi nằm trong `tests/hardening.spec.ts`; missing aggregates/generation/orphan positions có unit/integration bổ sung.
+
+Không đổi giới hạn số/byte của M3c. 200 attempts là trần thư viện đã stress; không có auto-prune. Những trần per-record không có nghĩa toàn bộ có thể đồng thời vừa backup32MiB. Không chỉnh thời điểm lịch ôn, ID chấm quiz, order đã lưu hoặc snapshot history khi cập nhật app. Thao tác lấy checkpoint sau reload có thể đổi meta generation/position.updatedAt; content, offset/revision/settings và các personal aggregates phải giữ nguyên.
+
+Các phần M3b bên dưới là lịch sử; phiên bản hiện tại là phần M3c và M4a, không phải v4.
 
 ## M3c — hợp đồng bổ sung hiện tại
 

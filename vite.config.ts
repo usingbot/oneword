@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { readFile, readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { localPwa } from './scripts/pwa.ts'
 
 // Ship only text-extraction resources, with their upstream notices. No CDN.
 async function pdfAssets() {
@@ -15,7 +16,10 @@ async function pdfAssets() {
 }
 
 export default defineConfig({
-  plugins: [react(), {
+  plugins: [react(), localPwa(), {
+    name: 'build-label', apply: 'build',
+    transformIndexHtml: html => html.replace('</head>', `<meta name="oneword-build" content="${(process.env.ONEWORD_BUILD_LABEL ?? 'production').replace(/[^a-zA-Z0-9._-]/g, '')}" /></head>`),
+  }, {
     name: 'local-pdf-assets',
     async generateBundle() { for (const [fileName, source] of await pdfAssets()) this.emitFile({ type: 'asset', fileName, source }) },
     async configureServer(server) {

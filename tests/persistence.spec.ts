@@ -80,7 +80,7 @@ test('export, clear real test storage, preview and restore original/revisions/po
   expect((await inspect(page)).documents).toHaveLength(0)
   await page.screenshot({ path: 'artifacts/m1b-restore-preview.png', fullPage: true })
   await page.getByRole('button', { name: 'Xác nhận khôi phục' }).click()
-  await saved(page)
+  await expect(page.getByText('Đã khôi phục bằng một transaction. Dữ liệu có sẵn được giữ nguyên.', { exact: true })).toBeVisible(); await saved(page)
   await expect(page.getByTestId('current-chunk')).toHaveText('từ3 từ4 từ5')
   await expect(page.getByLabel('Nội dung văn bản')).toHaveValue('nháp chưa áp dụng')
   await expect(page.getByLabel('Tốc độ', { exact: true })).toHaveValue('420')
@@ -115,7 +115,7 @@ test('restore rejects malformed, future version, invalid references and ID confl
   await page.getByLabel('Chọn tệp sao lưu').setInputFiles(info.outputPath('backup.json'))
   await expect(page.getByRole('dialog')).toContainText('1 tài liệu trùng hoàn toàn')
   await page.getByRole('button', { name: 'Xác nhận khôi phục' }).click()
-  await saved(page)
+  await expect(page.getByText('Đã khôi phục bằng một transaction. Dữ liệu có sẵn được giữ nguyên.', { exact: true })).toBeVisible(); await saved(page)
   expect((await inspect(page)).documents).toEqual(originalRows.documents)
 })
 

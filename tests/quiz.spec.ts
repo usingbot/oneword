@@ -110,6 +110,7 @@ test('two real tabs reject stale quiz answers and a failed write can be retried 
   const accepted = await state(other); await question(page).getByRole('radio', { name: 'Choice A', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('đã đổi ở tab khác'); expect(await state(page)).toEqual(accepted); await other.close()
   await page.evaluate(() => { const original = IDBObjectStore.prototype.put; IDBObjectStore.prototype.put = function(...args) { if (this.name === 'quiz') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic quota', 'QuotaExceededError') }; return original.apply(this, args) } })
   await question(page).getByRole('radio', { name: 'Choice C', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Chưa lưu thao tác'); expect(await state(page)).toEqual(accepted)
+  await expect(runner(page).getByRole('status')).toContainText('Thao tác chưa được lưu'); await expect(runner(page).getByRole('status')).not.toContainText('Đã lưu trên thiết bị')
   await choose(page, 'Choice C'); expect((await state(page)).quiz.attempts[0].items[0].selectedChoiceId).toBe('other')
 })
 

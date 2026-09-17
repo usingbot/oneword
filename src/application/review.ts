@@ -37,8 +37,18 @@ export const systemClock = () => new Date()
 export function emptyReview(timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'): ReviewData {
   return { settings: { newPerDay: 20, timeZone, desiredRetention: 0.9, scheduler: SCHEDULER_ID }, schedules: [], events: [], undos: [] }
 }
+const dayFormatters = new Map<string, Intl.DateTimeFormat>()
+export function dayFormatter(timeZone: string) {
+  let formatter = dayFormatters.get(timeZone)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
+    if (dayFormatters.size >= 16) dayFormatters.delete(dayFormatters.keys().next().value!)
+    dayFormatters.set(timeZone, formatter)
+  }
+  return formatter
+}
 export function studyDay(now: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now)
+  const parts = dayFormatter(timeZone).formatToParts(now)
   const part = (type: string) => parts.find(p => p.type === type)!.value
   return `${part('year')}-${part('month')}-${part('day')}`
 }

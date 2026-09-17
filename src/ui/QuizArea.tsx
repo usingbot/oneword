@@ -28,7 +28,7 @@ export function QuizArea({ packs, gateway, onChange, onDirty, selectedPackId, on
   }
   return <section className="quiz-area" aria-label="Quiz"><h2>Quiz</h2><p>Luyện tập có phản hồi từng câu. Kiểm tra chỉ hiện đáp án sau khi nộp toàn bài.</p>
     {error && <p role="alert">{error}</p>}
-    {attempt ? <QuizRunner key={attempt.id} attempt={attempt} busy={busy} onAction={action => execute({ type: 'update', id: attempt.id, expectedRevision: attempt.revision, action })} onExit={() => void execute({ type: 'open', id: null })} /> : <>
+    {attempt ? <QuizRunner key={attempt.id} attempt={attempt} busy={busy} failed={!!error} onAction={action => execute({ type: 'update', id: attempt.id, expectedRevision: attempt.revision, action })} onExit={() => void execute({ type: 'open', id: null })} /> : <>
       <label>Pack cho quiz<select value={pack?.id ?? ''} disabled={!!editor || busy} onChange={e => { onSelectPack(e.target.value); setQuizId('') }}>{!packs.length && <option value="">Chưa có pack</option>}{packs.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select></label>
       {!pack && <p>Tạo pack trước để thêm quiz.</p>}
       {pack && (editor ? <QuizEditor key={editor.id ?? 'new'} pack={pack} quiz={pack.quizzes?.find(q => q.id === editor.id)} busy={busy} onSave={save} onExit={() => setEditor(null)} /> : <>
@@ -44,19 +44,21 @@ export function QuizArea({ packs, gateway, onChange, onDirty, selectedPackId, on
     <p className="study-note">Bài quiz và lịch sử chỉ lưu trên thiết bị. Không tạo đánh giá hoặc thay đổi lịch FSRS. Hãy xuất Personal Backup để giữ cả các lượt làm bài.</p>
   </section>
 }
-function QuizRunner({ attempt, busy, onAction, onExit }: { attempt: QuizAttempt; busy: boolean; onAction: (action: QuizAction) => Promise<void>; onExit: () => void }) {
+function QuizRunner({ attempt, busy, failed, onAction, onExit }: { attempt: QuizAttempt; busy: boolean; failed: boolean; onAction: (action: QuizAction) => Promise<void>; onExit: () => void }) {
   const [confirm, setConfirm] = useState(false), [reviewIndex, setReviewIndex] = useState(attempt.current)
   const index = attempt.completedAt ? reviewIndex : attempt.current, item = attempt.items[index], summary = grade(attempt.items), completed = !!attempt.completedAt
   const heading = useRef<HTMLHeadingElement>(null)
+  const submit = useRef<HTMLButtonElement>(null), wasConfirming = useRef(false)
+  useEffect(() => { if (wasConfirming.current && !confirm && !completed) submit.current?.focus(); wasConfirming.current = confirm }, [confirm, completed])
   useEffect(() => { heading.current?.focus() }, [index, completed])
   function navigate(index: number) { if (completed) setReviewIndex(index); else void onAction({ type: 'navigate', index }) }
-  return <section aria-label="Lượt làm quiz"><div className="study-heading"><h3>{attempt.title}</h3><button disabled={busy} onClick={onExit}>Về danh sách quiz</button></div><p>{modeName[attempt.mode]} · Câu {index + 1} / {attempt.items.length} · {busy ? 'Đang lưu…' : 'Đã lưu trên thiết bị'}</p>
+  return <section aria-label="Lượt làm quiz"><div className="study-heading"><h3>{attempt.title}</h3><button disabled={busy} onClick={onExit}>Về danh sách quiz</button></div><p role="status">{modeName[attempt.mode]} · Câu {index + 1} / {attempt.items.length} · {busy ? 'Đang lưu…' : failed ? 'Thao tác chưa được lưu; dữ liệu trước đó được giữ.' : 'Đã lưu trên thiết bị'}</p>
     {attempt.result && <section aria-label="Kết quả quiz"><h3>Kết quả lượt này: {attempt.result.correct} / {attempt.result.total}{attempt.result.total ? ` (${Math.round(100 * attempt.result.correct / attempt.result.total)}%)` : ' — không có câu đủ dữ liệu để chấm'}</h3><p>Đã trả lời: {attempt.result.answered} · Chưa trả lời: {attempt.result.unanswered} · Loại do ảnh không khả dụng: {attempt.result.excluded}</p><p>Điểm = số câu đúng / số câu có thể chấm; câu chưa trả lời tính sai. Đây chỉ là kết quả của lượt này.</p></section>}
     <h4 ref={heading} tabIndex={-1}>Câu {index + 1}{item.flagged ? ' — đã đánh dấu' : ''}</h4>
     <QuestionView key={`${attempt.id}-${index}`} item={item} reveal={completed || item.submitted} completed={completed} busy={busy} mode={attempt.mode} onAction={onAction} />
     <div className="study-actions"><button disabled={busy || index === 0} onClick={() => navigate(index - 1)}>Câu trước</button><button disabled={busy || index === attempt.items.length - 1} onClick={() => navigate(index + 1)}>Câu tiếp theo</button>{!completed && <button disabled={busy} onClick={() => void onAction({ type: 'flag' })}>{item.flagged ? 'Bỏ đánh dấu câu' : 'Đánh dấu câu'}</button>}</div>
     <label>Đi đến câu<select value={index} disabled={busy} onChange={e => navigate(Number(e.target.value))}>{attempt.items.map((i, n) => <option key={i.question.id} value={n}>Câu {n + 1}{i.flagged ? ' — đánh dấu' : ''}{i.unavailable ? ' — ảnh không khả dụng' : i.selectedChoiceId ? ' — đã chọn' : ' — chưa trả lời'}</option>)}</select></label>
-    {!completed && <button disabled={busy} onClick={() => setConfirm(true)}>Nộp toàn bài</button>}
+    {!completed && <button ref={submit} disabled={busy} onClick={() => setConfirm(true)}>Nộp toàn bài</button>}
     {confirm && !completed && <section role="dialog" aria-modal="false" aria-label="Xác nhận nộp quiz"><h3>Nộp bài và chốt kết quả?</h3><p>Còn {summary.unanswered} câu chưa trả lời; trong chế độ Kiểm tra, các câu này sẽ tính sai. {summary.excluded} câu đã được loại do ảnh không khả dụng. Sau khi nộp không thể sửa đáp án.</p><button autoFocus disabled={busy} onClick={() => setConfirm(false)}>Quay lại làm bài</button><button disabled={busy} onClick={() => { void onAction({ type: 'finish' }); setConfirm(false) }}>Xác nhận nộp bài</button></section>}
   </section>
 }

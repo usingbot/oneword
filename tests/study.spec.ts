@@ -30,7 +30,7 @@ async function preview(page: Page, value: unknown = pack) {
 }
 async function confirm(page: Page) {
   await page.getByRole('button', { name: 'Xác nhận nhập Study Pack' }).click()
-  await expect(page.getByRole('status')).toContainText('Đã nhập Study Pack')
+  await expect(page.getByRole('main').getByRole('status')).toContainText('Đã nhập Study Pack')
   await expect(page.getByTestId('save-status')).toHaveText('Đã lưu trên thiết bị')
 }
 
@@ -141,7 +141,7 @@ test('identical import is a no-op; changed pack or reused child IDs are blocked 
   await preview(page)
   await expect(page.getByRole('region', { name: 'Xem trước Study Pack' })).toContainText('1 pack đã có')
   await page.getByRole('button', { name: 'Xác nhận nhập Study Pack' }).click()
-  await expect(page.getByRole('status')).toContainText('trùng hoàn toàn')
+  await expect(page.getByRole('main').getByRole('status')).toContainText('trùng hoàn toàn')
   expect(await inspect(page)).toEqual(before)
   await preview(page, { ...pack, title: 'Changed title' })
   await expect(page.getByRole('alert')).toContainText('khác nội dung')

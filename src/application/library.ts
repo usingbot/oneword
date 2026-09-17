@@ -47,7 +47,7 @@ export class Persistence {
   constructor(private storage: ReaderStorage, private report: (status: 'saving' | 'saved' | 'error', message?: string) => void) {}
   async open() {
     try { const saved = await this.storage.read(); this.generation = saved.generation; this.data = saved.data; return saved.data }
-    catch { this.blocked = true; this.loadFailed = true; this.report('error', 'Không mở được dữ liệu cục bộ. Phiên vẫn dùng trong bộ nhớ; hãy xuất sao lưu trước khi đóng. Không tự ghi đè kho dữ liệu.'); return this.data }
+    catch { this.blocked = true; this.loadFailed = true; this.report('error', 'Không mở được dữ liệu cục bộ. Không tự xóa hoặc ghi đè kho. Hãy đóng tab OneWord cũ, kiểm tra dung lượng/quyền lưu trữ rồi mở lại. Có thể sao chép hoặc xuất sao lưu phiên đang mở trước khi đóng; bản này không chứa dữ liệu cũ chưa đọc được. Giữ Personal Backup đã có để khôi phục trong trình duyệt riêng.'); return this.data }
   }
   update(data: LibraryData, immediate = false) {
     this.data = data; this.pending = true

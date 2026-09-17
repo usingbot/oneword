@@ -116,7 +116,7 @@ test('Personal Backup5 clear/restore preserves exact schedule/history/settings; 
   const path = info.outputPath('review-backup.json'); await (await download).saveAs(path)
   const backup = JSON.parse(await readFile(path, 'utf8')); expect(backup.schemaVersion).toBe(5); expect(backup.data.review).toEqual(before.data)
   await page.goto('about:blank'); const cdp = await context.newCDPSession(page); await cdp.send('Storage.clearDataForOrigin', { origin: baseURL!, storageTypes: 'indexeddb' })
-  await page.goto('/'); await page.getByLabel('Chọn tệp sao lưu').setInputFiles(path); await page.getByRole('button', { name: 'Xác nhận khôi phục' }).click()
+  await page.goto('/'); await page.getByLabel('Chọn tệp sao lưu').setInputFiles(path); await page.getByRole('button', { name: 'Xác nhận khôi phục' }).click(); await expect(page.getByText('Đã khôi phục bằng một transaction. Dữ liệu có sẵn được giữ nguyên.', { exact: true })).toBeVisible()
   await expect(page.getByTestId('save-status')).toHaveText('Đã lưu trên thiết bị')
   expect((await readReview(page)).data).toEqual(before.data)
   await page.getByRole('button', { name: 'Học / Flashcards' }).click()

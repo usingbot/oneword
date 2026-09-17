@@ -24,7 +24,7 @@ export function PdfImport({ file, onCancel, onAccept }: { file: File; onCancel: 
   return <div className="restore-overlay"><section className="pdf-dialog" role="dialog" aria-modal="true" aria-label="Nhập PDF" onKeyDown={event => {
     if (event.key === 'Escape') { event.preventDefault(); onCancel() }
     if (event.key === 'Tab') {
-      const elements = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), textarea, summary')]
+      const elements = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), textarea, summary')].filter(element => element.getClientRects().length > 0)
       const index = elements.indexOf(document.activeElement as HTMLElement)
       if (event.shiftKey && index <= 0 || !event.shiftKey && index === elements.length - 1) { event.preventDefault(); elements[event.shiftKey ? elements.length - 1 : 0]?.focus() }
     }

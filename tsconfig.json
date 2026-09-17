@@ -4,6 +4,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable", "ES2022.Intl"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,

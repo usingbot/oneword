@@ -88,7 +88,8 @@ export function validateLibrary(value: unknown): LibraryData {
     if (documentId !== activeDocumentId) return invalid('Bản nháp không khớp tài liệu đang mở.')
     draft = { documentId, text: text(d.text) }
   }
-  return { quizActiveAttemptId: validateActiveAttempt(data.quizActiveAttemptId, validateAttempts(data.quizAttempts)), quizAttempts: validateAttempts(data.quizAttempts), documents, positions, preferences: preferences(data.preferences), activeDocumentId, draft, packs: validateStudyLibrary(data.packs), review: validateReview(data.review, validateStudyLibrary(data.packs)) }
+  const packs = validateStudyLibrary(data.packs), quizAttempts = validateAttempts(data.quizAttempts)
+  return { quizActiveAttemptId: validateActiveAttempt(data.quizActiveAttemptId, quizAttempts), quizAttempts, documents, positions, preferences: preferences(data.preferences), activeDocumentId, draft, packs, review: validateReview(data.review, packs) }
 }
 export function exportBackup(data: LibraryData): string {
   const envelope: BackupEnvelope = { type: BACKUP_TYPE, schemaVersion: 5, exportedAt: new Date().toISOString(), data: validateLibrary(data) }

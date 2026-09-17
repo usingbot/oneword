@@ -1,4 +1,57 @@
-# Môi trường kiểm thử M1a / M1b / M2 / M3a / M3b / M3c
+# Môi trường kiểm thử M1a–M4a
+
+## M4a — 17/09/2026
+
+Đầu lượt: `D:/oneword`, main sạch, HEAD198e771 (chỉ thêm .gitattributes), parent12899e7 M3c. Không sửa/checkout/reset lịch sử. Không dependency thêm/xóa, package-lock giữ nguyên. Giữ AGENTS/project skills. Không commit/push/deploy/LICENSE/M4b. Những ghi chú “HEAD c0283f7/index M3b” trong phần M3c bên dưới là lịch sử, không phải trạng thái hiện tại.
+
+Windows Node22.17.0/npm11.15.0 build; Ubuntu WSL Node24.21.0/npm11.19.0 chạy Playwright1.63.0. Chromium binaries1243, Firefox1543 có sẵn; không cài thêm engine hoặc tắt sandbox. Current node_modules có native Rolldown Windows nên không build bằng Node Linux. Hai build cập nhật phải chuẩn bị trên Windows:
+
+```powershell
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm audit
+git diff --check
+git diff HEAD --check
+npm run test:prepare-updates
+wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh
+wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh --config=playwright.firefox.config.ts
+```
+
+`test:prepare-updates` tạo output Vite thật trong .tools, build label old/next tạo hash khác nhau; chạy lại sau khi đổi nguồn/config/public. Không ship fixtures/server test. Full primary suite dùng1worker/retries0, không skip/xfail; native hidden vẫn là project riêng qua WSLg/CDP. Firefox chạy smoke riêng qua `playwright.firefox.config.ts`, không ngụ ý toàn bộ tests Chromium đã chạy ở Firefox.
+
+| Gate | Kết quả |
+| --- | --- |
+| typecheck / lint | PASS |
+| unit/integration | PASS180/180,13 files,2,91s;173 baseline +7 mới |
+| production build / npm audit | PASS;0 vulnerabilities |
+| diff checks | PASS sau khi chốt docs/report |
+| full WSL primary | PASS81/81,12,6 phút;0 skip/0 retry, gồm native visibility |
+| Firefox smoke | PASS1/1,10,8s, Firefox155.0; cold offline/PDF/Reader/FSRS/Quiz |
+
+19 ca browser hardening/compatibility/update đã chạy riêng và PASS; performance thêm1 ca, nên primary full có81 ca (61 baseline +20). Lượt full cuối trong bảng đã chạy trên bản production sau khóa pending writes; log thực ở `artifacts/m4a-browser-final.log`. Các lỗi trong phát triển được sửa rồi kiểm lại: type errors ở Dexie transaction/table facade; imports Buffer/process cho lint; fixture backup ngoặc thừa; first-install worker để lại notification update giả. Không bỏ assertion nhiều tab; worker/client sửa state lifecycle, rồi3/3 update và19/19 hardening pass. Build ID còn bao gồm worker template để worker-only change không cài đè cache active. Không thay semantics học để vượt test.
+
+Lượt full đầu phát hiện7 ca Study Pack strict-locator failure: role=status của import trùng với offline-status mới bên ngoài main. Đã scope2locators vào main, giữ nguyên yêu cầu nội dung và mọi assertions storage/privacy. Lượt đó dừng sau các lỗi để chuẩn bị chạy lại, không tính là PASS; server test WSL còn lại sau interrupt đã được dừng theo PID/cwd xác minh. Một lượt unit stress11MB cũng vượt default5s (thực tế6,03s) khi môi trường chậm; đặt timeout riêng30s cho đúng workload stress, không đổi dataset/assertions hay latency claim. Các ca thông thường không đổi timeout. Thêm assertion Quiz failed-write không hiển thị saved-success. CSS skip-link clip khi không focus để full-page capture không vẽ phần link ở ngoài viewport.
+
+Lượt tiếp theo lộ race trong PDF restore test: chờ save-status đã có từ thư viện rỗng, rồi đọc DB trước restore transaction; nhận[] trong khi snapshot UI sau đó đã có PDF. Test được tăng điều kiện chờ thông báo **Đã khôi phục bằng một transaction** trước so sánh exact, không thêm sleep hoặc giảm assertion. Áp dụng cùng điều kiện rõ ràng cho các restore tests Reader/review còn dùng trạng thái cũ. Runtime restore vẫn chỉ publish sau commit; không sửa dữ liệu/semantics để vượt test.
+
+Rà update phát hiện một khe hở thật: transaction review còn pending nhưng nút chuyển về Đọc vẫn bật. Probe giữ một transaction IndexedDB thật để tạo hàng chờ, xác nhận trước sửa trong `artifacts/m4a-pending-write-probe.json`. App nay theo dõi promise ghi FSRS/Quiz, khóa chuyển khu vực/cập nhật cho tới khi ghi kết thúc. Hai update cases hiện có thêm cùng phép trì hoãn transaction cho rating và chọn đáp án, rồi kiểm dữ liệu đã commit còn nguyên sau cập nhật; không đổi tổng số tests hoặc semantics scheduler/grade.
+
+### Bằng chứng M4a
+
+- `artifacts/m4a-offline-privacy.json`: manifest/icon/installability errors=[], online preload → offline đóng trang → trang mới, Reader/PDF-derived text, review rating, Quiz, backup; requests GET cùng origin, cache chỉ static assets, errors=[].
+- `artifacts/m4a-update-{quiz,review,draft}.json`: raw records trước/sau qua2production builds, active sessions giữ nguyên cho tới user action. So sánh documents/packs/settings/review/quiz exact; position offset/revision/settings exact, bỏ riêng timestamp checkpoint. Native version50 không đổi. Quiz case thêm reading và restore-dialog guards; nhiều tab từ chối activation.
+- `artifacts/m4a-update-incomplete.json`: asset404 chặn install, cache cũ/DB giữ nguyên, cold offline cũ hoạt động, kết nối lại tải đầy đủ và thông báo update có thể phục hồi.
+- `artifacts/m4a-migration-v{1..5}.json`: fixtures native10/20/30/40/50 →50, giữ dữ liệu của era tương ứng. `m4a-migration-failure-{reference,record,future,interrupted}.json`: before/after toàn stores/version bằng nhau sau lỗi. Quota/migration interruption inject, không làm đầy ổ/cắt điện thật.
+- `artifacts/m4a-performance-{baseline,optimization,current}.json`: trước/sau và lần full cuối;11.09MB backup,2.000 cards,4.000 events,200 attempts. [Định nghĩa số đo/biến động](PERFORMANCE.md), không threshold latency giả.
+- `artifacts/m4a-mobile-{reader,review,quiz,recovery}.png`:390px, recovery320px, touch/keyboard/reduced-motion. Ảnh đã xem trực tiếp, cùng phiên browser control thủ công ở preview4184; chi tiết [ACCESSIBILITY.md](ACCESSIBILITY.md), contrast samples JSON riêng.
+- `artifacts/m4a-{chromium,firefox}-compatibility.json`: engine version, network, page errors và final DB; thực sự nhập PDF offline từ bytes synthetic, không chỉ seed metadata.
+- Existing M2/M3a/M3b/M3c evidence được full suite sinh lại: PDF actions không thực thi; text/script literal; remote images chỉ opt-in, no-referrer/no-cookie; quiz shuffle stable ID/reload, backup attempts/content-only export, FSRS isolation. Không upload PDF/text/packs/schedules/events/attempts/backups. Các fixture HTTP image endpoints được route cục bộ, không gửi dữ liệu thật.
+
+Giới hạn: installability check không phải OS installation; chưa WebKit/Safari/iOS/physical mobile hoặc screen-reader certification. Firefox chỉ smoke1ca. Local stress chưa là worst-case32MiB/20k events, latency biến động giữa lượt riêng/full; browser RAM chỉ sample JS heap. Profile/private mode/quota/eviction OS không được bảo đảm. Dev server không có SW, production base path chỉ `/`. Bằng chứng máy hiện tại trong artifacts/report là generated và đã .gitignore; source fixtures/tests/docs/icons là intentional deliverables.
+
+Các phần bên dưới giữ lịch sử kiểm chứng các chặng trước.
 
 ## M3c — kiểm chứng 17/09/2026
 

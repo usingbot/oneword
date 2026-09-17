@@ -1,5 +1,19 @@
 # Quyết định đã được người dùng duyệt
 
+## M4a — 17/09/2026
+
+Người dùng duyệt production hardening: PWA/offline, cập nhật an toàn, mobile/accessibility, đo hiệu năng, migration/recovery và privacy. Giữ semantics Reader/PDF/FSRS/Quiz. Không commit/push/deploy, chọn LICENSE, backend/accounts/cloud/AI/telemetry hoặc M4b. Đầu lượt main sạch tại198e771; commit này chỉ thêm .gitattributes trên M3c12899e7, đã kiểm và giữ nguyên.
+
+Lựa chọn triển khai trong phạm vi đã duyệt:
+
+- Đã đánh giá [Vite PWA prompt lifecycle](https://vite-pwa-org.netlify.app/guide/prompt-for-update). Dùng plugin Vite nhỏ và worker native cho allowlist tĩnh, integrity và điều kiện nhiều tab; không cài vite-plugin-pwa/Workbox. Không có dependency thêm/xóa, lockfile giữ nguyên. Đây là lựa chọn kỹ thuật, không phải yêu cầu dùng thư viện của người dùng.
+- [Lifecycle service worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers): cài đầy đủ rồi chờ, không tự skipWaiting khi có client cũ. Bấm cập nhật khi safe, flush rồi message/ack, controllerchange mới reload. Khi không còn client, lifecycle browser có thể kích hoạt worker đang chờ ở lần mở kế tiếp; không có phiên đang mở bị reload.
+- Precache201 tài nguyên khoảng4,16MB chưa nén (dist cả sw.js khoảng4,19MB). Chấp nhận tải byte PDF.js trước để offline hoàn chỉnh; vẫn lazy thực thi. Giữ cache hiện tại và một cache trước khi điều kiện client cho phép dọn, chỉ xóa prefix của OneWord. Không cache runtime media/data.
+- [Persistent storage](https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist) là tùy chọn sau nút người dùng bấm, có đường denied/error; không phải điều kiện sử dụng hoặc bảo đảm vĩnh viễn.
+- Không bump DB/backup. Validate graph trước commit migration và giữ kho lỗi. Tái sử dụng formatter và bỏ validation lặp sau đo; không giảm validation hoặc đổi thuật toán.
+- PNG icon192/512/maskable được vẽ bằng script dự án `scripts/generate-icons.mjs`, cùng motif vòng tròn/chấm hiện có. Không dùng asset thương hiệu khác, không thêm quyền push/background sync.
+- Kiểm package.json cài thực: runtime React/ReactDOM19.3.0 MIT, Dexie4.4.6 Apache-2.0, PDF.js6.3.289 Apache-2.0, ts-fsrs5.4.2 MIT. Toolchain giữ Vite8.3.0 MIT, Vitest5.0.1 MIT, TypeScript5.9.3 Apache-2.0, Playwright1.63.0 Apache-2.0. Giữ notice PDF/font/CMap trong build; chưa chọn license dự án. Audit cuối ghi ở TEST-ENVIRONMENT.
+
 ## Quyết định M3c — 17/09/2026
 
 - Một đáp án đúng, 2–6 choices, identity độc lập thứ tự. Không thêm thư viện hoặc type câu khác.

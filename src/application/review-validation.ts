@@ -1,4 +1,4 @@
-import { emptyReview, SCHEDULER_ID, ratings, studyDay, type CardSchedule, type ReviewData, type ReviewEvent, type ReviewSettings, type ReviewUndo, type SchedulerState } from './review'
+import { dayFormatter, emptyReview, SCHEDULER_ID, ratings, studyDay, type CardSchedule, type ReviewData, type ReviewEvent, type ReviewSettings, type ReviewUndo, type SchedulerState } from './review'
 import type { StudyPack } from './study-pack'
 
 function invalid(): never { throw new Error('Dữ liệu lịch ôn/lịch sử không hợp lệ hoặc không tương thích.') }
@@ -15,7 +15,7 @@ function list(value: unknown, max: number): unknown[] { if (!Array.isArray(value
 export function validateReviewSettings(value: unknown): ReviewSettings {
   const s = object(value, ['newPerDay', 'timeZone', 'desiredRetention', 'scheduler'])
   if (s.scheduler !== SCHEDULER_ID || s.desiredRetention !== 0.9 || typeof s.timeZone !== 'string' || s.timeZone.length > 100) return invalid()
-  try { new Intl.DateTimeFormat('en', { timeZone: s.timeZone }) } catch { return invalid() }
+  try { dayFormatter(s.timeZone) } catch { return invalid() }
   return { newPerDay: num(s.newPerDay, 0, 200), timeZone: s.timeZone, desiredRetention: 0.9, scheduler: SCHEDULER_ID }
 }
 function state(value: unknown): SchedulerState {

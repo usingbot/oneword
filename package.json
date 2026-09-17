@@ -11,7 +11,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "test:e2e": "playwright test",
-    "serve:built": "node scripts/serve-built.mjs"
+    "serve:built": "node scripts/serve-built.mjs",
+    "test:prepare-updates": "node scripts/build-update-fixtures.mjs"
   },
   "dependencies": {
     "dexie": "4.4.6",

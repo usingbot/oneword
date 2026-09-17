@@ -11,6 +11,19 @@ import type { StudyPack } from '../application/study-pack'
 
 export const DATABASE_NAME = 'oneword-reader'
 interface Meta { id: string; schemaVersion: 5; generation: number; activeDocumentId: string | null; draft: LibraryData['draft'] }
+async function readSnapshot(tables: Pick<Dexie, 'table'>) {
+  const meta = await tables.table<Meta>('meta').get('library'), documents = await tables.table<TextDocument>('documents').toArray(), prefs = await tables.table<Preferences & { id: string }>('settings').get('reader')
+  const packs = await tables.table<StudyPack>('packs').toArray(), positions = await tables.table<ReadingPosition>('positions').toArray()
+  let review = await tables.table<ReviewRecord>('review').get('review'), quiz = await tables.table<QuizRecord>('quiz').get('quiz')
+  if (meta && (meta.schemaVersion !== 5 || !Number.isSafeInteger(meta.generation) || meta.generation < 0)) throw new Error('Unsupported or corrupt database metadata')
+  if (!meta && (documents.length || prefs || packs.length || positions.length || review?.data.events.length || review?.data.schedules.length || review?.data.undos.length || quiz?.attempts.length)) throw new Error('Incomplete database; records retained')
+  if (meta && (!review || !quiz)) throw new Error('Missing personal state; records retained')
+  if (!review) { review = { id: 'review', generation: 0, data: emptyReview() }; await tables.table('review').put(review) }
+  if (!quiz) { quiz = { id: 'quiz', generation: 0, attempts: [], activeAttemptId: null }; await tables.table('quiz').put(quiz) }
+  if (![review.generation, quiz.generation].every(g => Number.isSafeInteger(g) && g >= 0)) throw new Error('Invalid personal generation')
+  const data = validateLibrary({ quizActiveAttemptId: quiz.activeAttemptId, quizAttempts: quiz.attempts, review: review.data, packs, documents, positions, preferences: prefs ? { reader: prefs.reader, glow: prefs.glow, progress: prefs.progress, fontSize: prefs.fontSize } : emptyLibrary().preferences, activeDocumentId: meta?.activeDocumentId ?? null, draft: meta?.draft ?? null })
+  return { data, generation: meta?.generation ?? 0 }
+}
 export class IndexedDbStorage implements ReaderStorage {
   readonly db: Dexie
   private documents: Table<TextDocument, string>
@@ -50,6 +63,8 @@ export class IndexedDbStorage implements ReaderStorage {
       const meta = await tx.table('meta').get('library')
       if (meta) { if (meta.schemaVersion !== 4) throw new Error('Unsupported database schema'); await tx.table('meta').put({ ...meta, schemaVersion: 5 }) }
       await tx.table('quiz').put({ id: 'quiz', generation: 0, attempts: [], activeAttemptId: null })
+      // Validate the entire migrated graph before committing the version change.
+      await readSnapshot(tx)
     })
     // Dexie v5 is native IndexedDB v50; reject future schemas before writes.
     this.documents = this.db.table('documents'); this.positions = this.db.table('positions'); this.settings = this.db.table('settings'); this.meta = this.db.table('meta')
@@ -57,20 +72,12 @@ export class IndexedDbStorage implements ReaderStorage {
     this.db.on('blocked', () => this.db.close())
   }
   async read() {
+    const started = performance.now()
     const result = await this.db.transaction('rw', this.db.tables, async () => {
       if (this.db.backendDB().version !== 50) throw new Error('Unsupported database version; no writes allowed')
-      const meta = await this.meta.get('library'), documents = await this.documents.toArray(), prefs = await this.settings.get('reader')
-      if (meta && meta.schemaVersion !== 5) throw new Error('Unsupported database schema')
-      if (meta && (!Number.isSafeInteger(meta.generation) || meta.generation < 0)) throw new Error('Invalid generation')
-      const packs = await this.packs.toArray()
-      if (!meta && (documents.length || prefs || packs.length)) throw new Error('Incomplete database')
-      let review = await this.db.table<ReviewRecord>('review').get('review')
-      if (!review) { review = { id: 'review', generation: 0, data: emptyReview() }; await this.db.table('review').put(review) }
-      let quiz = await this.db.table<QuizRecord>('quiz').get('quiz')
-      if (!quiz) { quiz = { id: 'quiz', generation: 0, attempts: [], activeAttemptId: null }; await this.db.table('quiz').put(quiz) }
-      const data = validateLibrary({ quizActiveAttemptId: quiz.activeAttemptId, quizAttempts: quiz.attempts, review: review.data, packs, documents, positions: await this.positions.toArray(), preferences: prefs ? { reader: prefs.reader, glow: prefs.glow, progress: prefs.progress, fontSize: prefs.fontSize } : emptyLibrary().preferences, activeDocumentId: meta?.activeDocumentId ?? null, draft: meta?.draft ?? null })
-      return { data, generation: meta?.generation ?? 0 }
+      return readSnapshot(this.db)
     })
+    performance.clearMeasures('oneword-idb-read'); performance.measure('oneword-idb-read', { start: started, end: performance.now() })
     this.savedDocuments = new Map(result.data.documents.map(d => [d.id, d]))
     this.savedPacks = new Map(result.data.packs.map(p => [p.id, p]))
     return result

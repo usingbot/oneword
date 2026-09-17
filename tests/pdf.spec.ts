@@ -194,6 +194,7 @@ test('PDF Personal Backup restores original, page metadata and edited text into 
   await expect(page.getByRole('dialog', { name: 'Xem trước khôi phục' })).toContainText('1 tài liệu mới')
   expect(await documents(page)).toHaveLength(0)
   await page.getByRole('button', { name: 'Xác nhận khôi phục' }).click()
+  await expect(page.getByText('Đã khôi phục bằng một transaction. Dữ liệu có sẵn được giữ nguyên.', { exact: true })).toBeVisible()
   await expect(page.getByTestId('save-status')).toHaveText('Đã lưu trên thiết bị')
   expect(await documents(page)).toEqual(original)
   await page.reload()

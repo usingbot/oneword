@@ -1,6 +1,31 @@
-# Kiến trúc M3b
+# Kiến trúc OneWord
 
-## M3c — kiến trúc hiện tại
+## M4a — kiến trúc hiện tại
+
+M4a giữ domain Reader/PDF/FSRS/Quiz và DB5/Backup5/StudyPack1–2. `scripts/pwa.ts` là Vite build plugin nội bộ: sau output, tính SHA-256 từng tài nguyên, hash cả worker template và allowlist để tạo build ID độc lập DB. `src/offline/worker.js` chỉ cache tài nguyên tĩnh cùng origin, không truy cập IndexedDB. `client.ts` quản lý đăng ký/kiểm tra/thông báo; `OfflinePanel` chỉ cho kích hoạt khi phiên an toàn và Persistence.flush thành công. Worker chặn kích hoạt chủ động khi còn tab khác; UI reload chỉ sau yêu cầu của người dùng. Chi tiết [OFFLINE.md](OFFLINE.md).
+
+```mermaid
+flowchart LR
+  Build["Vite build + hash/integrity"] --> Worker["Service worker"]
+  Worker --> Cache["CacheStorage: static assets"]
+  Cache --> UI["Reader / Study / Quiz UI"]
+  UI --> Gateway["Application + storage gateways"]
+  Gateway --> DB["IndexedDB 5: personal data"]
+  UI --> Safe["User update + safe state + flush"]
+  Safe --> Worker
+```
+
+Không có đường worker → IndexedDB; upgrade dữ liệu thuộc transaction/validator của storage gateway.
+
+App dùng React.lazy/Suspense cho StudyArea (gồm Quiz/editor) và PdfImport; gateway FSRS import động `review-store`. PDF.js/worker vẫn khởi tạo theo nhu cầu; precache tải byte tĩnh để các lazy imports dùng được offline. Không thêm state framework, dependency, runtime service hoặc network endpoint. Performance API chỉ giữ timing trong memory cho công cụ local, không gửi telemetry.
+
+`readSnapshot` kiểm toàn bộ quan hệ/aggregate/generation trong transaction; migration cuối gọi cùng validator trước commit. Kho đã có meta mà thiếu review/quiz bị coi là hỏng, không tự tạo lịch sử rỗng. Kho rỗng hợp lệ vẫn khởi tạo bình thường. Read failure khóa writer của coordinator; guidance phân biệt backup memory với dữ liệu cũ chưa đọc được. Personal Backup tiếp tục validate và merge atomic. [RECOVERY.md](RECOVERY.md).
+
+Đo dữ liệu lớn trước rồi mới loại validation trùng và cache tối đa16 Intl.DateTimeFormat theo timezone. Không bỏ validation, không thay FSRS profile, study-day hay grading. [PERFORMANCE.md](PERFORMANCE.md) có phép đo trước/sau.
+
+Các phần M3b/M3c bên dưới là mô tả lịch sử. Những câu “không service worker/Cache API” hoặc phiên bản backup cũ trong phần lịch sử đã được thay thế bởi phần M4a/M3c hiện tại.
+
+## M3c — mô hình Quiz được giữ trong M4a
 
 `quiz-content.ts` mở rộng content bằng quiz/question; `quiz.ts` giữ contract attempts, randomization có seed, grading và validation. `IndexedDbQuiz` dùng transaction Dexie qua cùng storage boundary; `QuizArea`/`QuizEditor` chỉ gọi application/gateway, không raw IndexedDB. DB v5/native50 thêm aggregate store quiz có generation riêng. Reader/content save luôn giữ attempts live; review write chỉ ghi review. Backup đọc reader/content/review/quiz trong transaction, restore kiểm cả review/quiz generations. Snapshot câu hỏi/choice order giúp bài cũ không phụ thuộc nội dung đã sửa/xóa. Không dependency mới, không network service. [QUIZ.md](QUIZ.md) là đặc tả hiện tại; phần M3b bên dưới ghi lại mốc trước.
 
