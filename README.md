@@ -1,100 +1,70 @@
 # OneWord
 
-Trình đọc TXT/PDF/dán văn bản theo nhịp RSVP, ôn Anki-style bằng FSRS và Quiz local. Chặng hiện tại: **M4a**, bổ sung PWA/ngoại tuyến, cập nhật an toàn, kiểm tra migration, mobile, accessibility và hiệu năng. Thư viện nằm trong IndexedDB; Study Pack chia sẻ nội dung, Personal Backup giữ cả lịch sử cá nhân.
+OneWord provides focused RSVP-style reading and local study tools. It combines a reader, Anki-style flashcards using FSRS, and quizzes in a static web application. It exists to let people read and study their own material without an account or a learning-data server. The interface is currently Vietnamese; the [user guide](docs/USER-GUIDE.md) describes its controls in Vietnamese.
 
-M1a–M3c đã được chấp nhận; M3b `6a4feda`, M3c `12899e7`, sau đó `198e771` chỉ chuẩn hóa line endings. Kiểm chứng và giới hạn trong [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md).
+**Release preparation:** M1a–M4a are accepted; M4b prepares the repository for publication. The proposed first public version is **0.1.0**. No public release or deployment is asserted here. Private security/community contacts and the public source URL must be configured before publication; see the [release checklist](docs/RELEASE-CHECKLIST.md).
 
-## Chạy local
+## What it does
 
-Môi trường Windows đã kiểm: Node 22.17.0, npm 11.15.0.
+- Import UTF-8 TXT, paste text, or extract a PDF's text layer locally. Preview and edit PDF text before saving; preserve the original text and revisions.
+- Read with adjustable RSVP groups, sentences, pace, punctuation pauses, context, keyboard controls and fullscreen. Losing visibility pauses playback. RSVP is an optional presentation mode, not a claim of improved comprehension or memory.
+- Create flashcards, reveal the answer after recall, and choose Again/Hard/Good/Easy. The local `ts-fsrs` scheduler supports due queues, a new-card limit, history and guarded undo.
+- Create single-answer quizzes with stable choice IDs, optional question/choice shuffling, practice/test modes and resumable attempts. Quiz answers never become FSRS ratings.
+- Exchange **Study Pack JSON** containing content only. **Personal Backup JSON** separately includes reading state, FSRS history and quiz attempts; validated restore merges atomically and rejects conflicting histories.
+- Install the production PWA where supported. After its initial offline preparation, the reader, extracted PDF text, study tools and backup/restore can work offline. Updates wait for a safe user-controlled reload.
 
-```powershell
-npm ci --ignore-scripts
+The software should not lock users into OneWord: users can export Study Packs, export Personal Backups and self-host the app. These are documented JSON formats, not automatic compatibility with Anki `.apkg`, AnkiWeb or every other study app.
+
+## Run locally
+
+Use Git and Node.js **24.21.0** with its npm for the documented CI environment. The accepted Windows baseline also ran on Node 22.17.0/npm 11.15.0. Obtain this source tree and run from its root:
+
+```sh
+npm ci
 npm run dev
 ```
 
-Vite chỉ bind 127.0.0.1. URL được terminal in ra (mặc định cổng 5173). Production preview:
+Open the loopback URL Vite prints (normally `http://127.0.0.1:5173`). No database server, API server, cloud account or environment secrets are required. Do not share a `node_modules` directory between Windows and Linux.
 
-```powershell
+For a production build and local preview:
+
+```sh
 npm run build
+npm run verify:release
 npm run preview
 ```
 
-## Sử dụng
+The static output is **`dist/`**. Publish its complete contents at an HTTPS origin root, including the service worker, PDF worker/resources and licenses. The development and preview servers are local tools. Read [self-hosting](docs/SELF-HOSTING.md) for MIME types, cache headers, updates, source availability and production checks; no deployment runs automatically.
 
-1. Mở TXT UTF-8 (tối đa 2 MiB), dán văn bản hoặc thử đoạn mẫu.
-2. Chọn **Dùng văn bản**. Có thể chỉnh sửa rồi **Áp dụng thay đổi**; bản gốc giữ riêng. **Hoàn tác** bỏ draft chưa áp dụng hoặc quay lại revision trước.
-3. Chọn 1–5 đơn vị, số tùy chỉnh 1–100 hoặc cả câu. WPM đếm đơn vị cách nhau bằng khoảng trắng, không phải phân tích từ tiếng Việt.
-4. Bấm phát hoặc focus vùng đọc và nhấn Space. ←/→ lùi/tiến một lượt. Các phím này giữ hành vi bình thường khi đang nhập liệu hoặc focus control.
-5. Mở toàn màn hình; Escape hoặc nút **Thoát** để ra. Nếu API bị từ chối, dùng focus view trong cửa sổ. **Ngữ cảnh** luôn tạm dừng.
+## Privacy and portable data
 
-Chuyển tab/cửa sổ tạm dừng; trở lại cần chủ động tiếp tục. Đổi tốc độ/cách chia lượt cũng tạm dừng. Áp dụng sửa/undo đặt vị trí về đầu và có thông báo. Không có tự nối/xóa dấu gạch.
+Learning data stays in this browser's IndexedDB by default. OneWord does not require uploading PDFs, text, cards, reviews, quiz attempts or backups, and includes no analytics or AI API. It fetches same-origin static application resources, including offline PDF resources. External HTTPS images load only after explicit user action and require CORS; their servers can see the connection's IP and request headers. A hosting provider may log static requests. See [PRIVACY.md](PRIVACY.md) for these boundaries.
 
-Chọn tài liệu đã lưu trong thanh dữ liệu hoặc **Tạo văn bản mới**. Reload mở lại tài liệu/draft và vị trí đã lưu, không tự phát. Checkpoint gom khoảng 1 giây, flush khi dừng; chờ **Đã lưu trên thiết bị** trước khi đóng. Khi báo lỗi, giữ trang mở và xuất backup của session.
+Browser data belongs to an origin and browser profile. A different hostname or port is a different library. Keep private backups outside the browser: site-data clearing, eviction, device loss or private browsing can remove local data. Backups are **not encrypted**. [Recovery guidance](docs/RECOVERY.md) explains save failures and restore conflicts.
 
-**Xuất sao lưu** tải JSON tại máy. **Khôi phục sao lưu** kiểm file, cho xem số tài liệu mới/trùng rồi mới xác nhận ghi atomic. Restore chỉ gộp; cùng ID khác nội dung bị chặn toàn bộ. Dữ liệu có sẵn không bị xóa. Giới hạn: 32 MiB/backup, 2 MiB/text, 100 documents, 1.000 revisions/document.
+## Current limitations
 
-IndexedDB thuộc origin/trình duyệt này; đổi port dev/preview là kho khác. Trình duyệt có thể dọn dữ liệu. Giữ backup JSON ở nơi riêng tư; file không mã hóa. Đóng cưỡng bức có thể mất phần sau checkpoint cuối. [Hướng dẫn phục hồi](docs/RECOVERY.md).
+- No OCR, password entry for encrypted PDFs, cloud sync, accounts, backend or AI integration.
+- PDF text order, multi-column layouts, tables and font mappings can be imperfect. Inspect the preview; extraction does not preserve page appearance or store the original PDF binary. Limits include 50 MiB/PDF, 500 pages and 2 MiB extracted text.
+- Remote images depend on network availability and server CORS. They are not embedded in Study Packs or guaranteed offline.
+- Browser storage can be cleared; local backups are unencrypted and need safe handling. Personal Backup is v5 (reads v1–v4); Study Pack v1/v2 excludes personal progress. Older apps cannot necessarily read newer data.
+- Physical-device testing is limited. Mobile viewports are emulated; WebKit is not fully verified and manual screen-reader testing remains limited. Firefox has a smoke test, not full parity with the Chromium suite.
+- Large restore operations can take significant time. The accepted M4a test restored an **11,087,067-byte (about 11 MB) backup in approximately 18.51 seconds**, using a Windows production build and WSL Chromium with a synthetic mixed library. Observations varied with host load (5.77–31.31 seconds); this is not a mobile or universal performance guarantee. See the fixture and methodology in [PERFORMANCE.md](docs/PERFORMANCE.md).
 
-## Cài đặt và ngoại tuyến
+## Verify changes
 
-Dùng bản production trên HTTPS hoặc localhost; `npm run dev` không đăng ký worker. Chờ **Ứng dụng đã sẵn sàng ngoại tuyến** trong lần mở có mạng, rồi dùng menu cài ứng dụng của trình duyệt nếu được hỗ trợ. Reader, PDF đã trích chữ, flashcards, FSRS, Quiz và Personal Backup dùng được sau khi đóng/mở trang không có mạng. Ảnh HTTPS bên ngoài cần mạng nếu chưa có trong cache HTTP của trình duyệt; OneWord không tự tải/cache ảnh đó.
-
-Khi thấy **OneWord có bản cập nhật mới**, hoàn tất chỉnh sửa/import, dừng đọc, về **Đọc**, đóng các tab OneWord khác rồi chọn **Cập nhật an toàn**. App flush dữ liệu trước reload; không tự tải lại phiên đang học. **Ưu tiên giữ dữ liệu trên thiết bị** là tùy chọn, không thay thế backup hoặc bảo đảm dữ liệu vĩnh viễn. [Ma trận và chiến lược cập nhật](docs/OFFLINE.md).
-
-## Mở PDF
-
-Chọn **Mở PDF** → xem tiến độ trang X/N → đối chiếu cảnh báo và bản trích xuất gốc theo trang → sửa văn bản → **Lưu và tiếp tục đến trình đọc**. Trình đọc không tự phát. Hãy áp dụng/hoàn tác văn bản đang nhập trước khi mở PDF. **Hủy nhập PDF** hoặc Escape bỏ toàn bộ preview, giữ nguyên tài liệu trước đó. Preview chưa lưu; đóng/reload có cảnh báo mất preview.
-
-PDF.js **6.3.289** đọc File bằng worker local, theo từng trang/stream chữ; không render trang ra canvas. PDF, chữ và metadata không upload. PDF.js vẫn import/thực thi khi mở PDF; PWA chuẩn bị trước các byte module/worker/CMaps/font tĩnh cùng origin để dùng ngoại tuyến. Không CDN, không chạy PDF JavaScript, attachment hoặc XFA.
-
-Giữ raw text và ranh giới/cảnh báo từng trang bất biến; bản làm việc chỉ gom tab/space/NBSP, chuẩn hóa CRLF, bỏ khoảng trắng đầu/cuối dòng và gom dòng trống. Giữ Unicode, xuống dòng đơn và mọi dấu gạch nối, kể cả `informa-\ntion`; người dùng có thể tự sửa. Có nút trở về bản chuẩn hóa hoặc dùng raw.
-
-Lưu chữ gốc, revisions, filename, số trang, thời điểm/phiên bản extractor và cảnh báo; **không lưu PDF binary hoặc ảnh trang**. Personal Backup hiện là v5, đọc được v1/v2/v3/v4; DB cũ nâng lên v5 bằng transaction, giữ dữ liệu cũ. App cũ không đọc được kho v5.
-
-Giới hạn: 50 MiB/tệp, 500 trang, 2 MiB chữ và 120 giây cho một lần xử lý PDF.js. PDF ảnh/scan hoặc trắng hoàn toàn báo không có chữ, không tạo tài liệu rỗng; mixed PDF ghi rõ trang thiếu/ít chữ. Chưa OCR và chưa nhập mật khẩu: PDF cần mật khẩu bị từ chối rõ ràng. File hỏng/không có trang/quá giới hạn bị chặn. Hai cột, bảng, footnote, font mapping sai hoặc công thức có thể trích xuất sai; heuristic chỉ cảnh báo, không bảo đảm đúng thứ tự. Không sửa thứ tự tự động.
-
-## Quiz (M3c)
-
-Chọn **Học / Flashcards → Quiz**. Tạo pack nếu chưa có, rồi **Tạo quiz** → lưu tên/mô tả → **Sửa nội dung quiz** → **Thêm câu hỏi**. Soạn 2–6 lựa chọn và chọn đúng một đáp án; có giải thích và ảnh HTTPS tùy chọn. Có thể sửa/xóa/đưa câu lên. Luyện tập chốt từng câu rồi hiện đúng/sai; Kiểm tra chỉ hiện kết quả sau xác nhận nộp toàn bài, cảnh báo câu bỏ trống. Xáo câu/lựa chọn là tùy chọn; reload giữ nguyên thứ tự, đáp án và vị trí đã lưu. Lịch sử cho mở lại bài đã nộp.
-
-Điểm chỉ là đúng/tổng của lượt này. Câu bỏ trống tính sai; câu đánh dấu thiếu ảnh thiết yếu được loại khỏi mẫu số và báo riêng. Quiz không ghi FSRS. Study Pack v2 chia sẻ nội dung quiz (v1 vẫn đọc/xuất được); Personal Backup v5 giữ cả bài đang làm và lịch sử. Chi tiết/giới hạn: [QUIZ.md](docs/QUIZ.md). Prompt ngoài tĩnh mới: [STUDY-PACK-PROMPT-v2.md](docs/STUDY-PACK-PROMPT-v2.md), không API AI trong app.
-
-## Học / Flashcards
-
-Chọn **Học / Flashcards** → **Tạo pack** → đặt tên/mô tả → tạo bộ thẻ → **Tạo thẻ**. Nhập chữ hai mặt, nhãn, nguồn và URL ảnh tùy chọn. **Sửa thẻ** giữ ID, tăng revision và có thể chuyển bộ thẻ; xóa thẻ/pack có xác nhận. Nội dung được lưu sau transaction thành công. Bản sửa đang nhập chưa lưu sẽ có cảnh báo khi rời khu vực học hoặc đóng trang.
-
-Khi xem nội dung chỉ hiện mặt trước; **Xem đáp án** mở mặt sau, **Thẻ tiếp theo** che đáp án lại. Chế độ này không ghi lịch ôn; dùng **Ôn theo lịch** để đánh giá recall và cập nhật FSRS.
-
-**Nhập Study Pack** nhận tệp JSON hoặc nội dung dán → kiểm tra → xem trước và xung đột → xác nhận. Không ghi trước xác nhận. Pack trùng hoàn toàn được bỏ qua; cùng ID khác nội dung/metadata hoặc tái dùng ID con ở pack khác chặn toàn bộ. **Xuất Study Pack** chỉ xuất nội dung của pack đang chọn, giữ ID và quan hệ; không chứa vị trí đọc, thiết lập hoặc trạng thái cá nhân. **Personal Backup v5** chứa thư viện đọc, packs, lịch ôn và quiz attempts cá nhân, dùng luồng sao lưu/khôi phục riêng.
-
-Ảnh chỉ là tham chiếu HTTPS, có alt và tùy chọn caption/essential. Mỗi ảnh cần bấm **Tải ảnh này**; không tải trước trong editor/import hoặc mặt sau đang che. Yêu cầu ảnh không gửi cookie cross-origin/referrer, nhưng máy chủ vẫn nhận IP và có thể nhận Origin; cần máy chủ cho phép CORS. Khi lỗi, giữ mô tả/chú thích và nhắc bỏ qua nếu ảnh thiết yếu. Không upload, proxy hoặc lưu binary ảnh vào kho ứng dụng; cache HTTP bình thường của trình duyệt vẫn có thể hoạt động.
-
-Xem [schema Study Pack v1 và giới hạn](docs/STUDY-PACK-SCHEMA.md). Có [prompt tĩnh v1](docs/STUDY-PACK-PROMPT-v1.md) để tự copy sang AI bên ngoài cùng tài liệu bạn chọn; OneWord không gọi API AI hoặc tự gửi tài liệu.
-
-## Ôn theo lịch
-
-Trong **Học / Flashcards**, chọn deck → **Ôn theo lịch**. Tự nhớ trước, **Mở đáp án**, rồi chọn **Quên / Khó / Nhớ / Dễ**. Quên dành cho quên/sai; Khó chỉ dùng khi nhớ đúng nhưng rất khó. Mặt trước và mặt sau xếp dọc sau reveal; không có rating trước reveal. Space mở đáp án, phím1–4 đánh giá khi focus ở vùng ôn ngoài controls; giữ phím không tạo lượt lặp.
-
-Thẻ đến hạn trước thẻ mới. Mặc định 20 thẻ mới/ngày toàn thư viện, chỉnh 0..200 trong **Thiết lập ôn**; không giới hạn due cards. Ngày học bắt đầu 00:00 theo timezone được lưu lúc mở kho lần đầu, không đổi theo timezone thiết bị về sau. FSRS **ts-fsrs 5.4.2** chạy local với retention mục tiêu0,90 cố định; đây là tham số scheduler, không phải điểm trí nhớ.
-
-**Hoàn tác lượt ôn** phục hồi lịch và allowance khi còn an toàn, giữ dấu lịch sử. **Bỏ qua trong phiên** không ghi rating, dùng khi thiếu ảnh thiết yếu. Thẻ đang learning có thể chưa đến hạn; bấm **Cập nhật hàng đợi** sau thời gian chờ. Sửa/chuyển deck giữ schedule; xóa card bỏ schedule live nhưng giữ audit và lượt mới đã dùng. Tab stale không được ghi đè: ứng dụng tải lại lịch và yêu cầu recall lại.
-
-Personal Backup hiện là **v5**, đọc v1/v2/v3/v4, giữ lịch ôn/events/undo/settings và quiz attempts; DB **v5/native50**. Study Pack **v1/v2 chỉ nội dung**, không mang tiến độ cá nhân. Chờ chuẩn bị ngoại tuyến ở lần mở có mạng để cold start. Xem [chính sách và schema lịch ôn](docs/FLASHCARD-SCHEDULING.md) trước khi trao đổi backup giữa máy; các history khác nhau bị chặn, không tự merge.
-
-## Kiểm tra
-
-```powershell
+```sh
 npm run typecheck
 npm run lint
 npm test
 npm run build
+npm run verify:release
 npm audit
 git diff --check
 git diff HEAD --check
 ```
 
-Playwright chạy trên Ubuntu WSL được hỗ trợ, không chạy Windows 10 làm bằng chứng hỗ trợ chính thức:
+The supported full browser gate on the existing Windows/Ubuntu WSL setup is:
 
 ```powershell
 npm run test:prepare-updates
@@ -102,12 +72,25 @@ wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh
 wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh --config=playwright.firefox.config.ts
 ```
 
-Script dùng Node Linux portable trong `.tools` nếu có, nếu không dùng Node Linux trên PATH. Browser binaries phải được chuẩn bị trước; xem [môi trường kiểm thử](docs/TEST-ENVIRONMENT.md). Build và chuẩn bị lại hai production fixtures trên Windows sau mỗi thay đổi nguồn, trước E2E. Fixtures nằm trong `.tools`, không ship/deploy. Các ca headed cần WSLg. Native visibility chạy Chromium với profile riêng và CDP `noDefaults: true`, kiểm trạng thái hidden thật trước khi kiểm reader. Firefox là smoke suite riêng, không được hiểu là toàn bộ suite đã chạy trên Firefox.
+Those paths describe this development checkout. Browser binaries and a working desktop/WSLg must be prepared first; see [TEST-ENVIRONMENT.md](docs/TEST-ENVIRONMENT.md) and [CONTRIBUTING.md](CONTRIBUTING.md). The full suite includes actual native visibility checks and two-build update fixtures, not just headless screenshots. [CI.md](docs/CI.md) explains why GitHub Actions runs the core gate while this browser gate remains separate.
 
-## Phạm vi
+## Project map and documentation
 
-M4a chưa có OCR, tài khoản, backend, AI API, telemetry, cloud sync, AnkiWeb, .apkg, optimizer hoặc dashboard nâng cao. Nội dung đọc, lịch ôn và Study Pack không upload; chỉ ảnh HTTPS được yêu cầu khi người dùng chọn tải. Không có font từ CDN. RSVP không bảo đảm tăng khả năng hiểu/nhớ và không phù hợp với mọi người; văn bản thường vẫn luôn truy cập được.
+| Location | Responsibility |
+| --- | --- |
+| `src/ui/` | Reader, PDF preview, study/review/quiz interfaces |
+| `src/application/` | Use cases, validation, document/content/personal-state contracts, scheduler adapter |
+| `src/domain/` | Reader segmentation and timing |
+| `src/storage/` | IndexedDB adapters, migrations and atomic persistence |
+| `src/application/pdf.ts`, `src/ui/PdfImport.tsx` | Local PDF extraction and preview boundary |
+| `src/offline/`, `scripts/pwa.ts` | Static-only service worker and build integrity |
+| `tests/`, `src/**/*.test.ts` | Browser and unit/integration tests |
+| `docs/`, `.agents/skills/`, `AGENTS.md` | Public guides, milestone evidence and contributor/agent rules |
 
-Giấy phép dự án chưa được chọn. Không có LICENSE; MIT chưa được duyệt, AGPL-3.0 đang được cân nhắc. Không commit/push/deploy tự động.
+Start with [architecture](docs/ARCHITECTURE.md), [data contracts](docs/DATA-CONTRACTS.md), [Study Pack schema](docs/STUDY-PACK-SCHEMA.md), [FSRS policy](docs/FLASHCARD-SCHEDULING.md), [Quiz](docs/QUIZ.md), [offline updates](docs/OFFLINE.md) and [accessibility](docs/ACCESSIBILITY.md). Detailed milestone documents are mainly Vietnamese; historical entries are marked and do not supersede current contracts.
 
-Tài liệu: [kiến trúc](docs/ARCHITECTURE.md), [dữ liệu](docs/DATA-CONTRACTS.md), [quyết định đã duyệt](docs/DECISIONS.md), [accessibility](docs/ACCESSIBILITY.md), [hiệu năng](docs/PERFORMANCE.md).
+## License and community
+
+OneWord application source is licensed under **GNU AGPL version 3 only** (`AGPL-3.0-only`): [LICENSE](LICENSE), [COPYRIGHT](COPYRIGHT). Dependencies, PDF fonts/CMaps and other third-party materials retain their own licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Importing a PDF, image or user-created Study Pack does **not** automatically apply the application license to that content.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [Contributor Covenant 2.1 Code of Conduct](CODE_OF_CONDUCT.md). [CHANGELOG.md](CHANGELOG.md) and [versioning](docs/VERSIONING.md) describe the proposed initial release. Security and conduct contacts are explicit publication TODOs, not working reporting addresses.

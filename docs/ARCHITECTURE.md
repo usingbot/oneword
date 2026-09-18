@@ -1,5 +1,22 @@
 # Kiến trúc OneWord
 
+## Public contributor overview (M4b)
+
+OneWord is a static React/TypeScript app with no application server. UI calls application use cases and gateway interfaces; pure domain code handles reader timing/segmentation, content validation, quiz grading and review policy. Storage adapters implement those interfaces using Dexie/IndexedDB transactions. UI is not the authority for persistence or scheduling. The sections below preserve milestone implementation history; this overview and the M4a/M3c sections describe the current contracts.
+
+| Boundary | Code and responsibility |
+| --- | --- |
+| Reader | `src/domain/` timing/segmentation; `src/application/document.ts` original/revisions; `library.ts` save coordination; `src/ui/App.tsx` presentation/input |
+| PDF | `src/application/pdf.ts` extraction through a local PDF.js worker; `src/ui/PdfImport.tsx` preview/confirmation; no OCR, upload, page binary persistence or arbitrary embedded script execution |
+| Study Pack | `src/application/study-pack.ts` and quiz-content contracts; content-only JSON v1/v2; explicit validation/conflict preview before atomic import |
+| FSRS | `src/application/fsrs-adapter.ts` is the narrow scheduler boundary; `review.ts`/`review-validation.ts` enforce recall/rating/history policy; `src/storage/review-store.ts` writes state and audit together |
+| Quiz | `src/application/quiz.ts` handles stable choice identity, saved order, grading and attempt snapshots; separate storage gateway; never creates FSRS events |
+| Backup | `src/application/backup.ts` validates Personal Backup v5, including attempts and review history; reads v1–v4; restore is atomic and rejects conflicting personal histories |
+| Storage | `src/storage/` owns IndexedDB v5/native50 migrations, transactions, generation/revision guards and validation before commit |
+| PWA | `scripts/pwa.ts` hashes static build output; `src/offline/worker.js` caches same-origin allowlisted assets, never IndexedDB or user media; the app coordinates safe update/flush |
+
+M4b adds public documentation, CI and build-time license assets. `scripts/license-assets.mjs` lists selected notices; Vite copies their exact bytes and the existing PWA plugin includes them in its integrity manifest. `scripts/verify-release.mjs` validates metadata, notice bytes and precache inclusion. There is no application runtime, schema, FSRS or quiz behavior change. See [CI.md](CI.md), [PRIVACY.md](../PRIVACY.md) and [SELF-HOSTING.md](SELF-HOSTING.md).
+
 ## M4a — kiến trúc hiện tại
 
 M4a giữ domain Reader/PDF/FSRS/Quiz và DB5/Backup5/StudyPack1–2. `scripts/pwa.ts` là Vite build plugin nội bộ: sau output, tính SHA-256 từng tài nguyên, hash cả worker template và allowlist để tạo build ID độc lập DB. `src/offline/worker.js` chỉ cache tài nguyên tĩnh cùng origin, không truy cập IndexedDB. `client.ts` quản lý đăng ký/kiểm tra/thông báo; `OfflinePanel` chỉ cho kích hoạt khi phiên an toàn và Persistence.flush thành công. Worker chặn kích hoạt chủ động khi còn tab khác; UI reload chỉ sau yêu cầu của người dùng. Chi tiết [OFFLINE.md](OFFLINE.md).

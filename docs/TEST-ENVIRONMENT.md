@@ -1,4 +1,26 @@
-# Môi trường kiểm thử M1a–M4a
+# Môi trường kiểm thử M1a–M4b
+
+## M4b — release preparation
+
+Đầu lượt main sạch, HEAD `d4b897c` (M4a). Chỉ docs/license/CI/build notices và
+khởi tạo thư mục evidence cho fresh clone; không đổi `src`, schema, dependency
+version hoặc test cases. [M4B-REPORT.md](M4B-REPORT.md) ghi đầy đủ phạm vi, kết quả
+và giới hạn. Các phần bên dưới là lịch sử; câu “không LICENSE/M4b” chỉ áp dụng
+cho lượt M4a, đã được quyết định AGPL-3.0-only trong M4b thay thế.
+
+Windows Node22.17.0/npm11.15.0: typecheck/lint PASS,180/180 tests(13files),build
+PASS,audit0. `npm run verify:release` kiểm13notice/license assets nguyên byte và
+integrity entries. Hai update fixtures build lại từ M4b. YAML workflow được parse
+và kiểm cấu trúc bằng PyYAML6.0.3 có sẵn. Fresh Linux copy dùng `npm ci`, rồi cùng
+npm gates:180/180 tests,build/notices/audit PASS trên Ubuntu26.04.1 WSL,
+Node24.21.0/npm11.19.0. Đây chưa là GitHub-hosted Ubuntu24.04 CI execution.
+
+Full WSL primary: **81/81 PASS,9,0 phút**, gồm native visibility; Firefox smoke:
+**1/1 PASS,10,9s**. Không skip/retry hoặc tắt sandbox. Chromium153.0.8010.12,
+Firefox155.0; native visibility dùng WSLg. Build/notices/PWA update và toàn bộ
+assertions cũ đều được kiểm. Logs: `artifacts/m4b-browser.log` và
+`artifacts/m4b-firefox.log`; gate/CI logs và performance sample trong cùng thư mục.
+Các diff checks và rà file mới/links PASS;29file intentional, không stage/commit.
 
 ## M4a — 17/09/2026
 

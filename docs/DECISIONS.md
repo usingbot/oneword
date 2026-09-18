@@ -1,5 +1,14 @@
 # Quyết định đã được người dùng duyệt
 
+## M4b — chuẩn bị phát hành nguồn mở
+
+- Người dùng chọn AGPL-3.0 cho source ứng dụng; metadata dùng `AGPL-3.0-only`, bản LICENSE chính thức GNU v3, không thêm điều khoản “or later”. Giữ license/notice riêng của dependency; không áp license ứng dụng lên PDF/ảnh/Study Pack của người dùng. Quyết định này thay thế trạng thái “chưa chọn license” trong các mốc lịch sử bên dưới.
+- Giữ version hiện có 0.1.0 và đề xuất làm bản public đầu tiên; chưa tag/release/push/deploy. `private: true` chỉ ngăn publish npm nhầm.
+- Phạm vi M4b là tài liệu, policy, CI và license assets của build. Không thay runtime `src`, schema hoặc dependency version. CI core trên Ubuntu/Node24; browser gate đầy đủ vẫn chạy WSL/WSLg, chưa coi runner GitHub là đã được kiểm chứng.
+- Private security/CoC contacts và URL/source offer public chưa có; ghi TODO bắt buộc trước publication, không bịa thông tin. Bản Contributor Covenant2.1 giữ nguyên nội dung ngoài contact template và ghi chú trạng thái.
+- Chỉ thêm notices runtime có ship, giữ nguyên PDF.js/CMap/font notices; Liberation trong package hiện tại là GPLv2 với font exceptions. Nguồn/điều kiện phân phối font phải được hoàn tất khi chuẩn bị public artifact.
+- Không commit trong M4b trước review/phê duyệt riêng; không bắt đầu phát hành hay deployment.
+
 ## M4a — 17/09/2026
 
 Người dùng duyệt production hardening: PWA/offline, cập nhật an toàn, mobile/accessibility, đo hiệu năng, migration/recovery và privacy. Giữ semantics Reader/PDF/FSRS/Quiz. Không commit/push/deploy, chọn LICENSE, backend/accounts/cloud/AI/telemetry hoặc M4b. Đầu lượt main sạch tại198e771; commit này chỉ thêm .gitattributes trên M3c12899e7, đã kiểm và giữ nguyên.

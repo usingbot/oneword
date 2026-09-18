@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { readFile, readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { localPwa } from './scripts/pwa.ts'
+import { licenseAssets } from './scripts/license-assets.mjs'
 
 // Ship only text-extraction resources, with their upstream notices. No CDN.
 async function pdfAssets() {
@@ -17,6 +18,13 @@ async function pdfAssets() {
 
 export default defineConfig({
   plugins: [react(), localPwa(), {
+    name: 'release-license-notices', apply: 'build',
+    async generateBundle() {
+      for (const [path, fileName] of licenseAssets) {
+        this.emitFile({ type: 'asset', fileName, source: await readFile(resolve(path)) })
+      }
+    },
+  }, {
     name: 'build-label', apply: 'build',
     transformIndexHtml: html => html.replace('</head>', `<meta name="oneword-build" content="${(process.env.ONEWORD_BUILD_LABEL ?? 'production').replace(/[^a-zA-Z0-9._-]/g, '')}" /></head>`),
   }, {

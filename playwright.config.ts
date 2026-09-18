@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
+
+// A fresh clone has no ignored artifact directory; evidence writers need it.
+mkdirSync('artifacts', { recursive: true })
 
 export default defineConfig({
   testDir: './tests',

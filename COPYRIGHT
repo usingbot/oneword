@@ -1,0 +1,20 @@
+OneWord — focused RSVP-style reading and local study tools
+Copyright (C) 2026 OneWord contributors
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+The OneWord application source is free software: you can redistribute it
+and/or modify it under the terms of the GNU Affero General Public License
+as published by the Free Software Foundation, version 3 of the License.
+
+OneWord is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See LICENSE for the complete terms.
+
+Contributors retain copyright in their contributions. This collective notice
+does not assign ownership or replace existing third-party notices.
+Dependencies, third-party fonts/CMaps and the Contributor Covenant retain
+their own licenses. See THIRD-PARTY-NOTICES.md.
+
+Importing a PDF, text, image reference or Study Pack does not license that
+content under the AGPL. Users remain responsible for their content and rights.
