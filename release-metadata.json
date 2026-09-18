@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "repositoryUrl": "https://github.com/usingbot/oneword",
+  "security": {
+    "privateContact": null,
+    "verified": false
+  },
+  "conduct": {
+    "privateContact": null,
+    "verified": false
+  },
+  "applicationSource": {
+    "commit": null,
+    "url": null,
+    "verified": false
+  },
+  "runtimeNotices": {
+    "status": "complete",
+    "evidence": "docs/THIRD-PARTY-RUNTIME.md"
+  },
+  "liberationSource": {
+    "status": "needs-external-review",
+    "upstreamSourceUrl": "https://releases.pagure.org/liberation-fonts/liberation-fonts-1.07.4.tar.gz",
+    "distributionUrl": null,
+    "reviewEvidence": null
+  }
+}

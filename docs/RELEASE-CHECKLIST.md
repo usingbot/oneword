@@ -6,9 +6,9 @@ Record the exact commit, versions, commands, logs and operator for each release.
 
 ## Publication blockers and policy
 
-- [ ] Select the actual public repository URL and verify it contains no secrets.
-- [ ] Configure and test the private security route; replace SECURITY.md TODO.
-- [ ] Configure a private Code of Conduct contact and replace its TODO.
+- [ ] Confirm the owner-selected repository in release-metadata.json and review publication rights/secrets.
+- [ ] Configure/test security.privateContact; mark verified only after private receipt.
+- [ ] Configure/test conduct.privateContact separately; no public issue/advisory routing.
 - [ ] Confirm contributor rights/copyright attribution and AGPL-3.0-only choice.
 - [ ] Supply an accessible source offer for the exact served build, with any
   third-party corresponding-source obligations satisfied.
@@ -23,6 +23,8 @@ Record the exact commit, versions, commands, logs and operator for each release.
 - [ ] Dependency audit reviewed, including transitive runtime/build packages;
   resolve advisories or record an explicit reviewed exception before release.
 - [ ] Production build and `npm run verify:release` pass.
+- [ ] `npm run verify:csp` passes against dist; no development WebSocket allowance.
+- [ ] `npm run release:check` passes with genuine verified metadata/source review; a blocked exit is not a release pass.
 - [ ] `git diff --check` and `git diff HEAD --check` pass before commit.
 - [ ] Full supported Chromium/WSL suite, including native visibility, passes.
 - [ ] Firefox smoke passes; document other engines/devices not tested.

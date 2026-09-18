@@ -10,15 +10,16 @@ before upgrading; version numbers do not guarantee every browser is supported.
 
 ## Private reporting — publication blocker
 
-**TODO before public release: the maintainer must supply and test a private
-security contact, or enable GitHub private vulnerability reporting on the
-actual public repository and put its exact reporting URL here.** No address
-or active private channel is claimed by this document.
+**Publication blocker until configured:** the private route is recorded as
+`security.privateContact` in [release metadata](release-metadata.json). Use it only
+when `security.verified` is true. Null/false means no verified working route is
+configured. No invented address is provided. See [configuration instructions](docs/RELEASE-METADATA.md),
+including GitHub private vulnerability reporting as an option once enabled.
 
 Once enabled, use that private channel for suspected vulnerabilities. Until it
 exists, do not post exploit details in a public issue; ask the maintainer only
 for a private reporting route without disclosing the vulnerability. There is
-currently no monitored security inbox advertised by OneWord.
+no monitored security inbox advertised while the central record remains unset.
 
 Include the affected commit/version, browser and OS, a minimal reproduction,
 expected/actual behavior, impact, relevant sanitized console messages and any

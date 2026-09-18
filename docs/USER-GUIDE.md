@@ -16,6 +16,15 @@ Chọn tài liệu đã lưu trong thanh dữ liệu hoặc **Tạo văn bản m
 
 IndexedDB thuộc origin/trình duyệt này; đổi port dev/preview là kho khác. Trình duyệt có thể dọn dữ liệu. Giữ backup JSON ở nơi riêng tư; file không mã hóa. Đóng cưỡng bức có thể mất phần sau checkpoint cuối. [Hướng dẫn phục hồi](RECOVERY.md).
 
+## Điều khiển khi đọc toàn màn hình
+
+Trong lúc đang đọc, di chuyển/nhấn con trỏ hoặc dùng phím điều khiển sẽ hiện toolbar
+và bắt đầu lại thời gian chờ 2,4 giây. Khi ngừng tương tác, toolbar tự ẩn; nếu một
+nút trong toolbar vẫn có focus bàn phím thì controls tiếp tục hiện để dùng được.
+Tab đưa focus đến nút thoát rồi các nút đọc; Escape thoát fullscreen. Khi pause
+hoặc đọc hết, controls được giữ hiện. Reduced motion bỏ hiệu ứng mờ nhưng giữ thời
+gian chờ. Blur/tab ẩn tạm dừng và không tự đọc tiếp khi quay lại.
+
 ## Cài đặt và ngoại tuyến
 
 Dùng bản production trên HTTPS hoặc localhost; `npm run dev` không đăng ký worker. Chờ **Ứng dụng đã sẵn sàng ngoại tuyến** trong lần mở có mạng, rồi dùng menu cài ứng dụng của trình duyệt nếu được hỗ trợ. Reader, PDF đã trích chữ, flashcards, FSRS, Quiz và Personal Backup dùng được sau khi đóng/mở trang không có mạng. Ảnh HTTPS bên ngoài cần mạng nếu chưa có trong cache HTTP của trình duyệt; OneWord không tự tải/cache ảnh đó.

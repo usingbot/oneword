@@ -24,6 +24,9 @@ test('paste, revision, immutable original, undo and dirty-state guard', async ({
 
 test('TXT import, file errors and whitespace-only input', async ({ page }) => {
   await page.goto('/')
+  // setInputFiles bypasses the inert startup UI; wait for the same interaction
+  // boundary a user must cross before importing into the initialized library.
+  await expect(page.locator('main#main')).toHaveJSProperty('inert', false)
   await page.getByLabel('Mở tệp TXT').setInputFiles({ name: 'tieng-viet.txt', mimeType: 'text/plain', buffer: Buffer.from(words) })
   await expect(page.getByTestId('current-chunk')).toHaveText('Một')
   page.on('dialog', (dialog) => dialog.accept())

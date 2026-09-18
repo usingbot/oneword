@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { makePdf, simplePages } from './fixtures/pdf'
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 
 const runtimeErrors = new WeakMap<Page, string[]>()
 test.beforeEach(async ({ page }) => {
@@ -21,6 +21,21 @@ async function documents(page: Page) {
     try { return await new Promise<{ source: string; original: string; pdf?: { pageCount: number }; revisions: { text: string }[] }[]>((resolve, reject) => { const r = db.transaction('documents').objectStore('documents').getAll(); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error) }) } finally { db.close() }
   })
 }
+
+test.describe('standard fonts without service-worker precaching', () => {
+  test.use({ serviceWorkers: 'block' })
+  test('text extraction requests the exact local Liberation font for non-embedded Helvetica', async ({ page }) => {
+    await page.goto('/')
+    const fontResponse = page.waitForResponse(response => response.url().endsWith('/pdf-assets/standard_fonts/LiberationSans-Regular.ttf'))
+    await open(page, makePdf(simplePages))
+    await expect(page.getByLabel('Văn bản PDF để chỉnh sửa')).toHaveValue(/OneWord PDF private sample/)
+    const response = await fontResponse
+    expect(response.ok()).toBe(true)
+    expect(new URL(response.url()).origin).toBe(new URL(page.url()).origin)
+    expect(await response.body()).toEqual(await readFile('node_modules/pdfjs-dist/standard_fonts/LiberationSans-Regular.ttf'))
+  })
+})
+
 test('PDF preview → edit → save → RSVP → reload → resume; raw preserved and no data leaves origin', async ({ page, context, baseURL }, info) => {
   const errors: string[] = [], requests: { url: string; method: string; body: string | null }[] = []
   page.on('pageerror', e => errors.push(e.message))

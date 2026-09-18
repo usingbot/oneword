@@ -7,7 +7,8 @@ the files; `file://` is not a supported application origin.
 ## Build and preview
 
 Install Git and Node.js 24.21.0 with npm. Obtain the source from the project's
-repository when published (a public URL has not yet been assigned in these docs).
+repository when source is published (the selected destination is in
+[release metadata](../release-metadata.json); an empty repository is not a source offer).
 From the source root:
 
 ```sh
@@ -96,3 +97,10 @@ bundled Liberation font license/exception; do not assume the app AGPL replaces i
 Run the [release checklist](RELEASE-CHECKLIST.md) on a staging origin before
 production, including a real cache-to-cache upgrade and backup round-trip.
 M4b does not deploy any instance or enable a public security-reporting channel.
+
+RC0 adds `npm run verify:csp` for built production policy and `npm run release:check`
+for publication blockers. Run both after build/notice validation. Development HMR
+uses Vite's separate serve-only policy handling; production connections are
+same-origin only. Readiness validation fails until private contacts, exact source
+and [font-source review](LIBERATION-SOURCE.md) are complete. See
+[release metadata instructions](RELEASE-METADATA.md).

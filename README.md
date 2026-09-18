@@ -2,7 +2,7 @@
 
 OneWord provides focused RSVP-style reading and local study tools. It combines a reader, Anki-style flashcards using FSRS, and quizzes in a static web application. It exists to let people read and study their own material without an account or a learning-data server. The interface is currently Vietnamese; the [user guide](docs/USER-GUIDE.md) describes its controls in Vietnamese.
 
-**Release preparation:** M1a–M4a are accepted; M4b prepares the repository for publication. The proposed first public version is **0.1.0**. No public release or deployment is asserted here. Private security/community contacts and the public source URL must be configured before publication; see the [release checklist](docs/RELEASE-CHECKLIST.md).
+**Release preparation:** M1a–M4a are accepted; M4b and RC0 prepare publication. The proposed first public version is **0.1.0**. No OneWord source release or deployment is asserted here. The owner-selected repository and pending contacts/source-review values are centralized in [release metadata](release-metadata.json). Public release remains blocked; see [RC0 blockers](docs/RC0-BLOCKERS.md) and the [release checklist](docs/RELEASE-CHECKLIST.md).
 
 ## What it does
 
@@ -93,4 +93,4 @@ Start with [architecture](docs/ARCHITECTURE.md), [data contracts](docs/DATA-CONT
 
 OneWord application source is licensed under **GNU AGPL version 3 only** (`AGPL-3.0-only`): [LICENSE](LICENSE), [COPYRIGHT](COPYRIGHT). Dependencies, PDF fonts/CMaps and other third-party materials retain their own licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Importing a PDF, image or user-created Study Pack does **not** automatically apply the application license to that content.
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [Contributor Covenant 2.1 Code of Conduct](CODE_OF_CONDUCT.md). [CHANGELOG.md](CHANGELOG.md) and [versioning](docs/VERSIONING.md) describe the proposed initial release. Security and conduct contacts are explicit publication TODOs, not working reporting addresses.
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [Contributor Covenant 2.1 Code of Conduct](CODE_OF_CONDUCT.md). [CHANGELOG.md](CHANGELOG.md) and [versioning](docs/VERSIONING.md) describe the proposed initial release. Run `npm run release:check` after building for publication blockers; [metadata instructions](docs/RELEASE-METADATA.md) explain this separate gate.

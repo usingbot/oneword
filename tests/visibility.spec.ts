@@ -33,17 +33,21 @@ test('real tab blur pauses without catch-up', async ({ page, context }) => {
   await other.close()
 })
 
-test('native fullscreen exits on Escape and toolbar fades while playing', async ({ page }) => {
+test('native fullscreen exits on Escape and keyboard reaches the controls', async ({ page }) => {
   await page.goto('/')
   await page.getByLabel('Nội dung văn bản').fill(Array.from({ length: 120 }, (_, i) => `từ${i}`).join(' '))
   await page.getByRole('button', { name: 'Dùng văn bản' }).click()
   await page.getByRole('button', { name: 'Mở toàn màn hình' }).click()
   await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true)
-  await page.keyboard.press('Space')
-  await page.mouse.move(0, 0)
-  await expect(page.locator('.stage-toolbar')).toHaveCSS('opacity', '0', { timeout: 5000 })
-  await page.keyboard.press('Tab')
+  // The shared WSLg desktop can deliver real pointer moves while a headed
+  // assertion is waiting. Inactivity/fade is checked in toolbar.spec.ts with
+  // real fullscreen/timers in headless Chromium, isolated from desktop input.
+  await expect(page.locator('.reader-stage')).toBeFocused()
+  await page.locator('.reader-stage').press('Tab')
   await expect(page.getByRole('button', { name: 'Thoát toàn màn hình' })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Lùi một lượt' })).toBeFocused()
+  await expect(page.locator('.stage-toolbar')).toHaveCSS('opacity', '1')
   await page.keyboard.press('Escape')
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true)
   await expect(page.locator('.reader-stage')).not.toHaveClass(/is-focus/)

@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { readFile, readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { localPwa } from './scripts/pwa.ts'
-import { licenseAssets } from './scripts/license-assets.mjs'
+import { licenseAssets, licenseContent } from './scripts/license-assets.mjs'
 
 // Ship only text-extraction resources, with their upstream notices. No CDN.
 async function pdfAssets() {
@@ -21,7 +21,7 @@ export default defineConfig({
     name: 'release-license-notices', apply: 'build',
     async generateBundle() {
       for (const [path, fileName] of licenseAssets) {
-        this.emitFile({ type: 'asset', fileName, source: await readFile(resolve(path)) })
+        this.emitFile({ type: 'asset', fileName, source: await licenseContent(path) })
       }
     },
   }, {

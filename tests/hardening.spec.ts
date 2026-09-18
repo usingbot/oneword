@@ -4,6 +4,8 @@ import { libraryFixture } from './fixtures/library'
 import { databaseSnapshot, seedDatabase } from './fixtures/browser-library'
 import { exportBackup } from '../src/application/backup'
 import { emptyLibrary } from '../src/application/library'
+import { waitForOfflineShell } from './fixtures/offline'
+import { expectOneGoodReview, readReviewRecord } from './fixtures/review'
 
 test.use({ hasTouch: true })
 
@@ -37,7 +39,11 @@ test('manifest, installed shell, offline Reader/PDF text, review, quiz and local
 test('uncached essential HTTPS image fails gracefully offline without caching or scoring wrong', async ({ page, context }) => {
   const data = libraryFixture(); data.quizActiveAttemptId = null
   const pack = structuredClone(data.packs[0]); pack.questions![0].image = { url: 'https://media.example.test/offline-required.png', alt: 'Uncached required image', essential: true }; data.packs = [pack]
-  await seedDatabase(page, data); await page.goto('/'); await expect(page.getByTestId('offline-status')).toContainText('sẵn sàng ngoại tuyến')
+  await seedDatabase(page, data); await page.goto('/')
+  // Cold installation is a separate precondition from the UI's default 5s
+  // assertion budget. Verify all build assets and an activated controller first.
+  await waitForOfflineShell(page)
+  await expect(page.getByTestId('offline-status')).toContainText('sẵn sàng ngoại tuyến')
   await page.getByRole('button', { name: 'Học / Flashcards' }).click(); await page.getByRole('button', { name: 'Quiz', exact: true }).click(); await page.getByRole('button', { name: 'Bắt đầu kiểm tra' }).click()
   await context.setOffline(true); await page.getByRole('button', { name: 'Tải ảnh câu hỏi' }).click(); await expect(page.getByRole('status').filter({ hasText: 'Không tải được ảnh' })).toBeVisible()
   await page.getByRole('button', { name: 'Đánh dấu ảnh không khả dụng' }).click(); await page.getByRole('button', { name: 'Nộp toàn bài', exact: true }).click(); await page.getByRole('button', { name: 'Xác nhận nộp bài' }).click(); await expect(page.getByRole('region', { name: 'Kết quả quiz', exact: true })).toContainText('0 / 1')
@@ -72,9 +78,18 @@ test('narrow touch and keyboard flows, reduced motion, modal focus and truthful 
   await page.screenshot({ path: 'artifacts/m4a-mobile-reader.png', fullPage: true })
   const source = page.getByLabel('Nội dung văn bản'); await source.focus(); await page.keyboard.press('End'); await page.keyboard.type(' draft'); await expect(page.getByRole('button', { name: 'Tạm dừng', exact: true })).toHaveCount(0); await page.getByRole('button', { name: 'Áp dụng thay đổi' }).click()
   await page.getByRole('button', { name: 'Mở toàn màn hình' }).click(); await expect(page.getByRole('button', { name: 'Thoát toàn màn hình' })).toBeInViewport(); await page.keyboard.press('Escape')
-  await page.getByRole('button', { name: 'Học / Flashcards' }).click(); await page.getByRole('button', { name: 'Ôn theo lịch', exact: true }).click(); const review = page.getByRole('region', { name: 'Ôn theo lịch', exact: true }); await review.focus(); await page.keyboard.press('Space')
+  await page.getByRole('button', { name: 'Học / Flashcards' }).click(); await page.getByRole('button', { name: 'Ôn theo lịch', exact: true }).click(); const review = page.getByRole('region', { name: 'Ôn theo lịch', exact: true })
+  // The panel mounts before its IndexedDB snapshot/card is ready. Early Space
+  // is intentionally ignored, so synchronize with recall before sending it.
+  await expect(review.getByRole('article')).toContainText('Recall synthetic fact 0?')
+  await expect(review.getByRole('button', { name: 'Mở đáp án', exact: true })).toBeEnabled()
+  const beforeReview = await readReviewRecord(page)
+  await review.focus(); await expect(review).toBeFocused(); await page.keyboard.press('Space')
+  await expect(review.getByText('Synthetic answer 0.', { exact: true })).toBeVisible()
+  await expect(review.locator('.review-ratings button')).toHaveCount(4)
+  await expect(review.getByRole('button', { name: /3 · Nhớ/ })).toBeEnabled()
   for (const button of await review.locator('.review-ratings button').all()) { const box = await button.boundingBox(); expect(box!.width).toBeGreaterThanOrEqual(44); expect(box!.height).toBeGreaterThanOrEqual(44) }
-  await page.screenshot({ path: 'artifacts/m4a-mobile-review.png', fullPage: true }); await page.keyboard.press('3'); await expect(review.getByRole('status')).toContainText('Đã lưu đánh giá')
+  await page.screenshot({ path: 'artifacts/m4a-mobile-review.png', fullPage: true }); await page.keyboard.press('3'); await expectOneGoodReview(page, beforeReview, 'card-0-0')
   await page.getByRole('button', { name: 'Trở về nội dung' }).click(); await page.getByRole('button', { name: 'Quiz', exact: true }).click(); await page.getByRole('radio', { name: 'First answer', exact: true }).focus(); await page.keyboard.press('Space'); await expect(page.getByRole('radio', { name: 'First answer', exact: true })).toBeChecked()
   await page.getByRole('button', { name: 'Nộp toàn bài', exact: true }).focus(); await page.keyboard.press('Enter'); await page.getByRole('button', { name: 'Quay lại làm bài' }).press('Enter'); await expect(page.getByRole('button', { name: 'Nộp toàn bài', exact: true })).toBeFocused()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
