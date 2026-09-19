@@ -3,6 +3,40 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { productionCspErrors, releaseMetadataErrors } from './release-validation.mjs'
 import { licenseContent } from './license-assets.mjs'
+import { verifyPublicSource } from './public-source.mjs'
+import { Buffer } from 'node:buffer'
+
+function publicSourceFixture({ dirty = false, remoteMismatch = false, privateRepo = false, treeMismatch = false, fileMismatch = false, unavailable = false } = {}) {
+  const commit = 'a'.repeat(40), tree = 'b'.repeat(40)
+  return {
+    git: async args => {
+      if (args[0] === 'status') return dirty ? ' M README.md' : ''
+      if (args[0] === 'rev-parse') return args[1] === 'HEAD' ? commit : tree
+      if (args.includes('ls-remote')) return `${remoteMismatch ? 'c'.repeat(40) : commit}\trefs/heads/main`
+      if (args[0] === 'show') return 'fixture source'
+      throw new Error('Unexpected Git call')
+    },
+    request: async url => {
+      if (unavailable) throw new Error('HTTP 404')
+      if (url.includes('raw.githubusercontent.com')) return Buffer.from(fileMismatch ? 'different' : 'fixture source\n')
+      if (url.includes('/git/commits/')) return Buffer.from(JSON.stringify({ sha: commit, tree: { sha: treeMismatch ? 'c'.repeat(40) : tree } }))
+      if (url.includes('/git/trees/')) return Buffer.from(JSON.stringify({ sha: tree, tree: [{ path: 'src', type: 'tree' }] }))
+      return Buffer.from(JSON.stringify({ private: privateRepo, full_name: 'usingbot/oneword' }))
+    },
+  }
+}
+
+test('live source mapping resolves HEAD without a tracked self-referential SHA', async () => {
+  const source = await verifyPublicSource('https://github.com/usingbot/oneword', publicSourceFixture())
+  assert.equal(source.commit, 'a'.repeat(40))
+  assert.equal(source.url, `https://github.com/usingbot/oneword/tree/${source.commit}`)
+  assert.equal(source.verified, true)
+})
+for (const failure of ['dirty', 'remoteMismatch', 'privateRepo', 'treeMismatch', 'fileMismatch', 'unavailable']) {
+  test(`live source verification rejects ${failure}`, async () => {
+    await assert.rejects(verifyPublicSource('https://github.com/usingbot/oneword', publicSourceFixture({ [failure]: true })))
+  })
+}
 
 const html = policy => `<meta http-equiv="Content-Security-Policy" content="${policy}">`
 test('accepts the self-only production connection policy', () => {

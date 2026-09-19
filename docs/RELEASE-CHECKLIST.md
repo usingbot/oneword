@@ -6,8 +6,9 @@ Record the exact commit, versions, commands, logs and operator for each release.
 
 Current candidate: **0.1.0**, with package.json as version authority; planned tag
 **v0.1.0** has not been created. Repository and both private contacts are configured;
-the owner confirmed receipt/monitoring. Exact source publication and Liberation
-approval remain pending. See [current readiness](FINAL-RELEASE-READINESS.md).
+the owner confirmed receipt/monitoring. Source-only publication is authorized and
+public HEAD is checked live by release:check. Liberation approval remains pending.
+See [source publication](PUBLIC-SOURCE.md).
 
 ## Publication blockers and policy
 

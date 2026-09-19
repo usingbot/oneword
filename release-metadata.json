@@ -18,9 +18,7 @@
     "verificationEvidence": "Owner confirmed receipt testing and monitoring for Code of Conduct on 2026-09-19."
   },
   "applicationSource": {
-    "commit": null,
-    "url": null,
-    "verified": false
+    "mode": "public-head"
   },
   "runtimeNotices": {
     "status": "complete",

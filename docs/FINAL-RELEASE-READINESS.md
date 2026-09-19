@@ -1,6 +1,10 @@
 # Final release metadata and readiness — 2026-09-19
 
-Classification: **NOT READY** under the unchanged publication validator.
+Historical metadata-preparation result, before source publication. See
+[PUBLIC-SOURCE.md](PUBLIC-SOURCE.md) for the subsequent source-only publication
+and dynamic source-access checks. The following records the earlier gate result.
+
+Classification: **NOT READY** under the then-current publication validator.
 Metadata preparation is complete; this is not publication approval.
 
 ## Scope and identity

@@ -7,9 +7,10 @@ the files; `file://` is not a supported application origin.
 ## Build and preview
 
 Install Git and Node.js 24.21.0 with npm. Obtain the source from the project's
-repository when source is published at
-[usingbot/oneword](https://github.com/usingbot/oneword). Exact release-source
-access is still pending in [release metadata](../release-metadata.json).
+published repository at
+[usingbot/oneword](https://github.com/usingbot/oneword). Public source access is
+checked live by [release metadata validation](RELEASE-METADATA.md); binary release
+and deployment remain blocked by Liberation review/source-delivery approval.
 From the source root:
 
 ```sh

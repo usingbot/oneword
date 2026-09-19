@@ -22,40 +22,32 @@ email fallback. It is not claimed enabled here. Follow the
 Never route sensitive vulnerabilities to public issues; vulnerability advisories
 are also not a Code of Conduct enforcement channel.
 
-## Source/build mapping — prepared, not published
+## Source/build mapping — live public HEAD
 
-Intended identity: **OneWord 0.1.0 → tag v0.1.0 → approved full release commit →
-https://github.com/usingbot/oneword**. No tag/release URL is advertised before it
-exists. The initial metadata-preparation baseline was
-`e52ad5c716e844b29e1b25341db2f1af3ef47984`; it is not asserted to be the final
-release commit. This preparation itself changes release-facing files.
+Source-only publication is authorized at https://github.com/usingbot/oneword.
+It does not authorize a tag, binary release, deployment or Liberation distribution.
+See [source publication evidence](PUBLIC-SOURCE.md).
 
-At the separately authorized source freeze/publication step:
+applicationSource.mode is public-head. On each `npm run release:check`,
+scripts/public-source.mjs resolves local HEAD at execution time and requires:
 
-1. Select the approved clean source commit and capture `git rev-parse HEAD`.
-   Confirm package.json, lockfile and release.version agree; freeze the source
-   used for the build. Do not substitute a moving branch or an earlier baseline.
-2. Record that full commit and its real canonical repository `/tree/` URL in
-   applicationSource. Keep verified=false until anonymous access to that exact
-   complete source is checked. Do not invent a URL containing an unknown commit.
-3. Build from that source and retain an external release record tying version,
-   full source SHA, intended tag, build label, generated SW hash and artifact
-   SHA-256 checksums together. A commit cannot contain its own hash: finalize
-   this record after the source commit exists, rather than repeatedly amending
-   the source or pointing at the parent to force the gate green.
-4. After authorized publication, verify the complete source is accessible without
-   credentials and corresponds to the distributed build, including build scripts,
-   lockfile, licenses and modifications. Only then attest public access and run
-   release:check using the finalized release record. Commit any later source
-   changes separately and re-evaluate the mapping before distributing artifacts.
-5. Create the matching tag and release artifacts only with separate approval.
+1. A clean tracked/untracked source tree.
+2. Unauthenticated Git main from the canonical repository equal to local HEAD.
+3. Unauthenticated GitHub API access showing a public repository and the exact
+   commit with the same source-tree object as local Git.
+4. A publicly accessible source tree containing src, plus README, LICENSE,
+   SECURITY.md and CONTRIBUTING.md matching the committed source.
 
-For this preparation applicationSource.commit/url remain null and verified=false.
-The existing validator therefore still rejects missing exact-source identity and
-unverified public access. This is intentional truthful pending data, not a fake
-canonical URL. No source-access verification or publication was performed here.
-The final release-record handoff must be completed in the authorized publication
-workflow; this task does not add a validator bypass or a new publishing tool.
+The checked full SHA and exact /tree/ URL are printed by the command and supplied
+in memory to the existing metadata validator. No SHA or verified flag is persisted
+back to Git. Network errors, private access, stale public main, differing files or
+local changes fail closed; there is no fallback to an earlier verification.
+
+This closes source identity/access only when the live checks actually pass.
+It does not assert a released version or approve the font-source/legal review.
+A later authorized v0.1.0 tag must point to the exact reviewed public source commit;
+record its build/checksums separately after source freeze, without a self-referential
+tracked commit hash. Version 0.1.0 is still an unreleased candidate.
 
 ## Version and build identity
 

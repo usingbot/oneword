@@ -2,7 +2,7 @@
 
 OneWord provides focused RSVP-style reading and local study tools. It combines a reader, Anki-style flashcards using FSRS, and quizzes in a static web application. It exists to let people read and study their own material without an account or a learning-data server. The interface is currently Vietnamese; the [user guide](docs/USER-GUIDE.md) describes its controls in Vietnamese.
 
-**Release preparation:** the public release candidate version is **0.1.0**, from package.json. The canonical source destination is [usingbot/oneword](https://github.com/usingbot/oneword). Security and Code of Conduct contacts are configured and owner-verified in [release metadata](release-metadata.json). Exact release-source publication/access and Liberation legal/source-delivery approval remain pending. No source release, tag or deployment is claimed. See [current readiness](docs/FINAL-RELEASE-READINESS.md) and the [release checklist](docs/RELEASE-CHECKLIST.md).
+**Release preparation:** the public release candidate version is **0.1.0**, from package.json. The canonical source destination is [usingbot/oneword](https://github.com/usingbot/oneword). Security and Code of Conduct contacts are configured and owner-verified in [release metadata](release-metadata.json). The source repository is published; exact public HEAD is verified live by release:check. Liberation legal/source-delivery approval remains pending. No version tag, binary release or deployment is claimed. See [source publication](docs/PUBLIC-SOURCE.md) and the [release checklist](docs/RELEASE-CHECKLIST.md).
 
 ## What it does
 
