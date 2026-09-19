@@ -1,7 +1,8 @@
 # Versioning and release identity
 
-Proposed initial public version: **0.1.0**, already the package/project version.
-M4b does not bump it, tag it or publish it. `private: true` prevents accidental
+Public release candidate version: **0.1.0**, with package.json as the source of
+truth and release.version/lockfile matching it. Tag **v0.1.0** is planned but not
+created. See [source/build mapping](RELEASE-METADATA.md). `private: true` prevents accidental
 npm publication; it does not make the source repository proprietary.
 
 Use [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html). While below

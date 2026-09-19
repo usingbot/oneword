@@ -4,6 +4,11 @@ This is a reusable checklist. Boxes describe the **future public release**;
 they are not marked complete merely because a local M4b preparation check ran.
 Record the exact commit, versions, commands, logs and operator for each release.
 
+Current candidate: **0.1.0**, with package.json as version authority; planned tag
+**v0.1.0** has not been created. Repository and both private contacts are configured;
+the owner confirmed receipt/monitoring. Exact source publication and Liberation
+approval remain pending. See [current readiness](FINAL-RELEASE-READINESS.md).
+
 ## Publication blockers and policy
 
 - [ ] Confirm the owner-selected repository in release-metadata.json and review publication rights/secrets.
@@ -50,6 +55,15 @@ Record the exact commit, versions, commands, logs and operator for each release.
   exclude private files, caches, test reports and node_modules; record checksums.
 - [ ] Run hosted CI on the actual public repository; local checks are not hosted CI evidence.
 - [ ] Create the approved tag pointing to the verified commit.
+- [ ] Follow the [source/build mapping procedure](RELEASE-METADATA.md): record the
+  final full commit, actual exact-source URL, version, build label, SW hash and
+  artifact checksums in the release record; verify anonymous source access.
+- [ ] After Liberation legal/source-delivery approval, provide
+  `fonts-liberation_1.07.4-11.dsc`, `fonts-liberation_1.07.4.orig.tar.gz` and
+  `fonts-liberation_1.07.4-11.debian.tar.xz` alongside the release. Check the exact
+  authoritative URLs, lengths and SHA-256 values in [LIBERATION-SOURCE.md](LIBERATION-SOURCE.md).
+  Confirm equivalent source access for any hosted font distribution; do not
+  treat this proposed arrangement as legal approval.
 - [ ] Create the approved GitHub release with source, artifacts, checksums and notes.
 - [ ] Deploy only with separate approval; use HTTPS/root scope/correct MIME/cache headers.
 - [ ] Verify the deployed origin, source/license links, installability, asset integrity,

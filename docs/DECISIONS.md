@@ -1,5 +1,12 @@
 # Quyết định đã được người dùng duyệt
 
+## RC0 — metadata phát hành, 19/09/2026
+
+- Repository chuẩn: https://github.com/usingbot/oneword. Version public candidate là 0.1.0, lấy package.json làm nguồn chuẩn; chưa tạo tag v0.1.0.
+- Security và Code of Conduct dùng andmx3456@gmail.com. Người dùng xác nhận đã kiểm tra nhận thư và có người phụ trách theo dõi cả hai; metadata ghi verified=true theo xác nhận này.
+- Source mapping chuẩn bị theo docs/RELEASE-METADATA.md; chưa xác nhận public access. Liberation giữ **LIKELY CLOSED — NEEDS LEGAL REVIEW**. Các mục thiếu contact ở mốc M4b bên dưới là lịch sử, được thay thế bởi quyết định này.
+- Chỉ metadata/docs/package config thay đổi; không push/tag/release/deploy hay thay runtime.
+
 ## M4b — chuẩn bị phát hành nguồn mở
 
 - Người dùng chọn AGPL-3.0 cho source ứng dụng; metadata dùng `AGPL-3.0-only`, bản LICENSE chính thức GNU v3, không thêm điều khoản “or later”. Giữ license/notice riêng của dependency; không áp license ứng dụng lên PDF/ảnh/Study Pack của người dùng. Quyết định này thay thế trạng thái “chưa chọn license” trong các mốc lịch sử bên dưới.

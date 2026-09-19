@@ -8,18 +8,19 @@ release and the main development branch. Older 0.x releases have no promised
 backports or response-time SLA. Use a tested release and retain Personal Backups
 before upgrading; version numbers do not guarantee every browser is supported.
 
-## Private reporting — publication blocker
+## Private reporting
 
-**Publication blocker until configured:** the private route is recorded as
-`security.privateContact` in [release metadata](release-metadata.json). Use it only
-when `security.verified` is true. Null/false means no verified working route is
-configured. No invented address is provided. See [configuration instructions](docs/RELEASE-METADATA.md),
-including GitHub private vulnerability reporting as an option once enabled.
+Report suspected vulnerabilities privately to
+[andmx3456@gmail.com](mailto:andmx3456@gmail.com). The owner confirmed receipt
+testing and monitoring on 2026-09-19; this is recorded in
+[release metadata](release-metadata.json).
 
-Once enabled, use that private channel for suspected vulnerabilities. Until it
-exists, do not post exploit details in a public issue; ask the maintainer only
-for a private reporting route without disclosing the vulnerability. There is
-no monitored security inbox advertised while the central record remains unset.
+After source publication at [usingbot/oneword](https://github.com/usingbot/oneword),
+enable and verify GitHub Private Vulnerability Reporting. Preferred reporting
+order is GitHub Private Vulnerability Reporting **if enabled**, then the email
+above as fallback. GitHub reporting is not claimed enabled by this preparation.
+See [configuration instructions](docs/RELEASE-METADATA.md).
+**Do not post sensitive vulnerability reports or exploit details in public issues.**
 
 Include the affected commit/version, browser and OS, a minimal reproduction,
 expected/actual behavior, impact, relevant sanitized console messages and any

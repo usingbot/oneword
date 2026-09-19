@@ -50,6 +50,9 @@ Toàn dist khoảng4,19MB chưa nén;201 tài nguyên precache khoảng4,16MB, c
 
 ## Giới hạn và cách tái hiện
 
+Đường dẫn tuyệt đối bên dưới là môi trường phát triển/kiểm thử tham chiếu dùng
+để thu thập bằng chứng M4a; thay bằng đường dẫn clone của bạn khi chạy lại.
+
 Windows: `npm run build`, `npm run test:prepare-updates`. Sau đó `wsl -d Ubuntu -- bash /mnt/d/oneword/scripts/test-wsl.sh tests/performance.spec.ts --project=chromium`. `M4A_MEASUREMENT=baseline` chỉ dành cho đo bản runtime trước thay đổi, không dùng ghi đè baseline bằng code hiện tại.
 
 11MB/200 attempts đã round-trip; chưa stress toàn32MiB hoặc20.000 ReviewEvents trên mobile. Restore vẫn có synchronous validation và đã mất hơn30s trong một lượt; không nên xem các trần dữ liệu hiện tại là dung lượng sử dụng thoải mái trên mobile. Đề xuất đánh giá mức vận hành ban đầu≤5MiB backup/≤50attempts/≤1.000cards trên điện thoại thật, rồi mới chốt giới hạn hướng dẫn; các số đề xuất này **chưa được benchmark**, không phải hard limit mới hoặc bảo đảm an toàn. Giữ validator limits hiện có để không từ chối dữ liệu hợp lệ của người dùng, không auto-truncate và không tăng trần. Xử lý validation ngoài main thread cần một thay đổi có test riêng; chưa triển khai ở đây. Có thể xem xét cảnh báo entry gzip150kB cho CI sau này; timing biến động quá lớn để đặt gate latency cụ thể từ các lần chạy này. M4a chưa đặt timing gate dễ flaky.

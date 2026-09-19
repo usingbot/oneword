@@ -1,13 +1,21 @@
 {
   "schemaVersion": 1,
   "repositoryUrl": "https://github.com/usingbot/oneword",
+  "release": {
+    "version": "0.1.0",
+    "status": "prepared-not-published",
+    "plannedTag": "v0.1.0",
+    "sourceMappingPlan": "docs/RELEASE-METADATA.md"
+  },
   "security": {
-    "privateContact": null,
-    "verified": false
+    "privateContact": "mailto:andmx3456@gmail.com",
+    "verified": true,
+    "verificationEvidence": "Owner confirmed receipt testing and monitoring for Security on 2026-09-19."
   },
   "conduct": {
-    "privateContact": null,
-    "verified": false
+    "privateContact": "mailto:andmx3456@gmail.com",
+    "verified": true,
+    "verificationEvidence": "Owner confirmed receipt testing and monitoring for Code of Conduct on 2026-09-19."
   },
   "applicationSource": {
     "commit": null,

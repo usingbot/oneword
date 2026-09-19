@@ -1,9 +1,9 @@
 # Changelog
 
 No public release or release date is claimed yet. The initial public version
-proposed for this repository is **0.1.0**, matching package.json.
+prepared for this repository is **0.1.0**, matching package.json.
 
-## Unreleased — proposed 0.1.0
+## Unreleased — 0.1.0 release candidate
 
 - TXT/paste and local text-layer PDF ingestion, editable extracted text with
   immutable originals and revisions; no OCR.
@@ -22,6 +22,9 @@ proposed for this repository is **0.1.0**, matching package.json.
   measurements and privacy/network verification.
 - Release preparation: AGPL-3.0-only metadata, third-party notices, public docs,
   contribution/security policies and core CI checks.
+- RC0 technical closure, Liberation provenance evidence, configured owner-verified
+  private contacts and canonical source metadata. Exact release-source access and
+  Liberation legal/source-delivery approval remain pending.
 
 These capabilities summarize accepted M1a–M4a milestones plus M4b release
 preparation. Known limitations remain in [README.md](README.md). No tag,

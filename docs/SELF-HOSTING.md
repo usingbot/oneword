@@ -7,8 +7,9 @@ the files; `file://` is not a supported application origin.
 ## Build and preview
 
 Install Git and Node.js 24.21.0 with npm. Obtain the source from the project's
-repository when source is published (the selected destination is in
-[release metadata](../release-metadata.json); an empty repository is not a source offer).
+repository when source is published at
+[usingbot/oneword](https://github.com/usingbot/oneword). Exact release-source
+access is still pending in [release metadata](../release-metadata.json).
 From the source root:
 
 ```sh
@@ -84,8 +85,9 @@ including your modifications, build scripts, lockfile and license notices.
 Provide a prominent source/license link from the instance or its hosting page;
 do not offer only an unrelated/latest branch. Follow the actual [LICENSE](../LICENSE)
 terms, including section 13 where applicable. User content remains separately
-licensed. Required public repository/source-offer URLs are release checklist
-items, not invented links in M4b.
+licensed. The canonical repository is configured; the exact build/source URL
+and public access must still be confirmed using the
+[source/build mapping procedure](RELEASE-METADATA.md).
 
 A source archive can be prepared from the approved release commit using
 `git archive --format=tar.gz --output=oneword-source.tar.gz <release-commit>`;

@@ -1,4 +1,4 @@
-> Publication blocker while the private enforcement contact in [release metadata](release-metadata.json) is null/unverified. Maintainers must resolve it before opening the community publicly. Do not post private incident details in public issues.
+> Private enforcement contact: [andmx3456@gmail.com](mailto:andmx3456@gmail.com). The owner confirmed receipt testing and monitoring on 2026-09-19, as recorded in [release metadata](release-metadata.json). Do not post private incident details in public issues.
 
 
 # Contributor Covenant Code of Conduct
@@ -39,7 +39,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement through **the private `conduct.privateContact` route in [release metadata](release-metadata.json), only when `conduct.verified` is true**. A null/unverified contact is a publication blocker. Do not send conduct reports to public issues or vulnerability advisories. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at **[andmx3456@gmail.com](mailto:andmx3456@gmail.com)**. Do not send conduct reports to public issues or vulnerability advisories. All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 
