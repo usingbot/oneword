@@ -12,6 +12,12 @@ Record the exact commit, versions, commands, logs and operator for each release.
 - [ ] Confirm contributor rights/copyright attribution and AGPL-3.0-only choice.
 - [ ] Supply an accessible source offer for the exact served build, with any
   third-party corresponding-source obligations satisfied.
+- [ ] Complete Liberation legal review, including patched-font naming/trademark
+  terms; approve actual source delivery. Preserve the exact Debian 1:1.07.4-11
+  source set (.dsc, .orig.tar.gz, .debian.tar.xz), with checksums and source links,
+  as detailed in [LIBERATION-SOURCE.md](LIBERATION-SOURCE.md). The original
+  upstream archive alone omits the identified patches; metadata stays blocked
+  until review and accessible distribution are complete.
 - [ ] Obtain explicit approval to publish/tag/release/deploy.
 
 ## Repository and verification

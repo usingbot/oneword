@@ -28,4 +28,8 @@ provenance review; the selected-file count is not an exhaustive legal certificat
 
 Runtime notice review status: **complete for the pinned RC0 helper scope**.
 Liberation source distribution is tracked independently in
-[LIBERATION-SOURCE.md](LIBERATION-SOURCE.md) and remains unresolved.
+[LIBERATION-SOURCE.md](LIBERATION-SOURCE.md). All four font binaries now have an
+exact Debian 1:1.07.4-11 byte match and an identified upstream-source-plus-patches
+package. This does not affect the helper inventory or its 16 notice assets.
+Liberation remains **LIKELY CLOSED — NEEDS LEGAL REVIEW**, with source delivery
+and naming/trademark review still required before publication.
